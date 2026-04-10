@@ -85,13 +85,13 @@ export class KanbanView extends ItemView {
 			cls: 'kanban-input',
 			attr: {type: 'text', placeholder: colDef.placeholder},
 		});
-		inputEl.addEventListener('keydown', async (e: KeyboardEvent) => {
+		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
 			if (e.key !== 'Enter') return;
 			const raw = inputEl.value.trim();
 			if (!raw) return;
 			const title = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
 			if (!title) return;
-			await this.addKanbanItem(colDef.id, title);
+			void this.addKanbanItem(colDef.id, title);
 			inputEl.value = '';
 		});
 
@@ -110,18 +110,20 @@ export class KanbanView extends ItemView {
 			if (!columnEl.contains(e.relatedTarget as Node))
 				columnEl.removeClass('kanban-column-dragover');
 		});
-		columnEl.addEventListener('drop', async (e: DragEvent) => {
-			e.preventDefault();
-			columnEl.removeClass('kanban-column-dragover');
-			if ((e.target as HTMLElement).closest('.kanban-item')) return;
-			const dt = e.dataTransfer;
-			if (!dt) return;
-			const kanbanRaw = dt.getData(DRAG_TYPE_KANBAN);
-			if (kanbanRaw) { await this.moveKanbanToColumn(JSON.parse(kanbanRaw), colDef.id); return; }
-			const refRaw = dt.getData(DRAG_TYPE_REFERENCE);
-			if (refRaw) { await this.addKanbanItem(colDef.id, (JSON.parse(refRaw) as ReferenceDragPayload).noteTitle); return; }
-			const title = this.extractNoteTitleFromDrop(e);
-			if (title) await this.addKanbanItem(colDef.id, title);
+		columnEl.addEventListener('drop', (e: DragEvent) => {
+			void (async () => {
+				e.preventDefault();
+				columnEl.removeClass('kanban-column-dragover');
+				if ((e.target as HTMLElement).closest('.kanban-item')) return;
+				const dt = e.dataTransfer;
+				if (!dt) return;
+				const kanbanRaw = dt.getData(DRAG_TYPE_KANBAN);
+				if (kanbanRaw) { await this.moveKanbanToColumn(JSON.parse(kanbanRaw) as KanbanDragPayload, colDef.id); return; }
+				const refRaw = dt.getData(DRAG_TYPE_REFERENCE);
+				if (refRaw) { await this.addKanbanItem(colDef.id, (JSON.parse(refRaw) as ReferenceDragPayload).noteTitle); return; }
+				const title = this.extractNoteTitleFromDrop(e);
+				if (title) await this.addKanbanItem(colDef.id, title);
+			})();
 		});
 	}
 
@@ -159,43 +161,45 @@ export class KanbanView extends ItemView {
 			if (!itemEl.contains(e.relatedTarget as Node))
 				itemEl.removeClass('kanban-item-drag-before', 'kanban-item-drag-after', 'kanban-item-drag-child');
 		});
-		itemEl.addEventListener('drop', async (e: DragEvent) => {
-			e.preventDefault(); e.stopPropagation();
-			const isBefore = itemEl.hasClass('kanban-item-drag-before');
-			const isChild  = itemEl.hasClass('kanban-item-drag-child');
-			this.clearDragIndicators();
-			const dt = e.dataTransfer;
-			if (!dt) return;
-			const kanbanRaw = dt.getData(DRAG_TYPE_KANBAN);
-			if (kanbanRaw) {
-				const p: KanbanDragPayload = JSON.parse(kanbanRaw);
-				if (isChild) await this.makeKanbanChild(p, columnId, item);
-				else         await this.reorderKanbanItem(p, columnId, item, parentItem, isBefore);
-				return;
-			}
-			const refRaw = dt.getData(DRAG_TYPE_REFERENCE);
-			if (refRaw) {
-				const p: ReferenceDragPayload = JSON.parse(refRaw);
-				if (isChild) await this.addKanbanChildItem(columnId, item, p.noteTitle);
-				else         await this.addKanbanItem(columnId, p.noteTitle);
-				return;
-			}
-			const title = this.extractNoteTitleFromDrop(e);
-			if (!title) return;
-			if (isChild) await this.addKanbanChildItem(columnId, item, title);
-			else         await this.addKanbanItem(columnId, title);
+		itemEl.addEventListener('drop', (e: DragEvent) => {
+			void (async () => {
+				e.preventDefault(); e.stopPropagation();
+				const isBefore = itemEl.hasClass('kanban-item-drag-before');
+				const isChild  = itemEl.hasClass('kanban-item-drag-child');
+				this.clearDragIndicators();
+				const dt = e.dataTransfer;
+				if (!dt) return;
+				const kanbanRaw = dt.getData(DRAG_TYPE_KANBAN);
+				if (kanbanRaw) {
+					const p = JSON.parse(kanbanRaw) as KanbanDragPayload;
+					if (isChild) await this.makeKanbanChild(p, columnId, item);
+					else         await this.reorderKanbanItem(p, columnId, item, parentItem, isBefore);
+					return;
+				}
+				const refRaw = dt.getData(DRAG_TYPE_REFERENCE);
+				if (refRaw) {
+					const p = JSON.parse(refRaw) as ReferenceDragPayload;
+					if (isChild) await this.addKanbanChildItem(columnId, item, p.noteTitle);
+					else         await this.addKanbanItem(columnId, p.noteTitle);
+					return;
+				}
+				const title = this.extractNoteTitleFromDrop(e);
+				if (!title) return;
+				if (isChild) await this.addKanbanChildItem(columnId, item, title);
+				else         await this.addKanbanItem(columnId, title);
+			})();
 		});
 
 		const linkEl = itemEl.createEl('a', {text: item.noteTitle, cls: 'kanban-link'});
-		linkEl.addEventListener('click', (e: MouseEvent) => { e.preventDefault(); this.app.workspace.openLinkText(item.noteTitle, '', false); });
+		linkEl.addEventListener('click', (e: MouseEvent) => { e.preventDefault(); void this.app.workspace.openLinkText(item.noteTitle, '', false); });
 		linkEl.addEventListener('mouseover', (e: MouseEvent) => {
 			this.app.workspace.trigger('hover-link', {event: e, source: VIEW_TYPE_KANBAN, hoverParent: this, targetEl: linkEl, linktext: item.noteTitle, sourcePath: ''});
 		});
 
 		const deleteBtn = itemEl.createSpan({text: '×', cls: 'kanban-item-delete'});
-		deleteBtn.addEventListener('click', async (e: MouseEvent) => {
+		deleteBtn.addEventListener('click', (e: MouseEvent) => {
 			e.stopPropagation();
-			await this.removeKanbanItem(columnId, item, parentItem);
+			void this.removeKanbanItem(columnId, item, parentItem);
 		});
 
 		if (item.children?.length) {
@@ -244,18 +248,20 @@ export class KanbanView extends ItemView {
 		const addBtn = tabBarEl.createDiv({cls: 'ref-tab ref-tab-add'});
 		addBtn.setText('+');
 		addBtn.setAttribute('aria-label', '새 탭 추가');
-		addBtn.addEventListener('click', async () => {
-			const newTab: ReferenceTab = {
-				id: generateTabId(),
-				displayName: '새 탭',
-				icon: '📁',
-			};
-			this.plugin.settings.reference.customTabs.push(newTab);
-			this.plugin.settings.reference.items[newTab.id] = [];
-			await this.plugin.saveSettings();
-			this.activeTabId  = newTab.id;
-			this.editingTabId = newTab.id; // 생성 즉시 편집 모드
-			this.renderBoard();
+		addBtn.addEventListener('click', () => {
+			void (async () => {
+				const newTab: ReferenceTab = {
+					id: generateTabId(),
+					displayName: '새 탭',
+					icon: '📁',
+				};
+				this.plugin.settings.reference.customTabs.push(newTab);
+				this.plugin.settings.reference.items[newTab.id] = [];
+				await this.plugin.saveSettings();
+				this.activeTabId  = newTab.id;
+				this.editingTabId = newTab.id; // 생성 즉시 편집 모드
+				this.renderBoard();
+			})();
 		});
 	}
 
@@ -295,27 +301,29 @@ export class KanbanView extends ItemView {
 				tabEl.removeClass('ref-tab-drag-before', 'ref-tab-drag-after');
 			}
 		});
-		tabEl.addEventListener('drop', async (e: DragEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			const isBefore = tabEl.hasClass('ref-tab-drag-before');
-			this.clearTabDragIndicators();
+		tabEl.addEventListener('drop', (e: DragEvent) => {
+			void (async () => {
+				e.preventDefault();
+				e.stopPropagation();
+				const isBefore = tabEl.hasClass('ref-tab-drag-before');
+				this.clearTabDragIndicators();
 
-			const draggedId = e.dataTransfer?.getData(DRAG_TYPE_REF_TAB);
-			if (!draggedId || draggedId === tab.id) return;
+				const draggedId = e.dataTransfer?.getData(DRAG_TYPE_REF_TAB);
+				if (!draggedId || draggedId === tab.id) return;
 
-			const tabs = this.plugin.settings.reference.customTabs;
-			const fromIdx = tabs.findIndex(t => t.id === draggedId);
-			if (fromIdx === -1) return;
+				const tabs = this.plugin.settings.reference.customTabs;
+				const fromIdx = tabs.findIndex(t => t.id === draggedId);
+				if (fromIdx === -1) return;
 
-			// 원본 제거 후 남은 배열에서 대상 위치 찾아 삽입
-			const moved = tabs.splice(fromIdx, 1)[0];
-			if (!moved) return;
-			const newToIdx = tabs.findIndex(t => t.id === tab.id);
-			tabs.splice(isBefore ? newToIdx : newToIdx + 1, 0, moved);
+				// 원본 제거 후 남은 배열에서 대상 위치 찾아 삽입
+				const moved = tabs.splice(fromIdx, 1)[0];
+				if (!moved) return;
+				const newToIdx = tabs.findIndex(t => t.id === tab.id);
+				tabs.splice(isBefore ? newToIdx : newToIdx + 1, 0, moved);
 
-			await this.plugin.saveSettings();
-			this.renderBoard();
+				await this.plugin.saveSettings();
+				this.renderBoard();
+			})();
 		});
 
 		// ── 클릭 / 더블클릭 ────────────────────────────────────────
@@ -338,7 +346,7 @@ export class KanbanView extends ItemView {
 		const deleteBtn = tabEl.createSpan({text: '×', cls: 'ref-tab-delete-btn'});
 		deleteBtn.addEventListener('click', (e: MouseEvent) => {
 			e.stopPropagation();
-			new ConfirmDeleteTabModal(this.app, tab.displayName, () => this.deleteTab(tab.id)).open();
+			new ConfirmDeleteTabModal(this.app, tab.displayName, () => { void this.deleteTab(tab.id); }).open();
 		});
 	}
 
@@ -362,22 +370,24 @@ export class KanbanView extends ItemView {
 			await this.plugin.saveSettings();
 			this.renderBoard();
 		};
-		saveBtn.addEventListener('click', doSave);
-		nameInput.addEventListener('keydown', async (e: KeyboardEvent) => {
-			if (e.key === 'Enter')  { await doSave(); }
-			if (e.key === 'Escape') {
-				// 새 탭 취소 시 삭제
-				const isNew = this.plugin.settings.reference.customTabs.find(t => t.id === tab.id)?.displayName === '새 탭';
-				if (isNew) { this.deleteTab(tab.id); return; }
-				this.editingTabId = null;
-				this.renderBoard();
-			}
+		saveBtn.addEventListener('click', () => { void doSave(); });
+		nameInput.addEventListener('keydown', (e: KeyboardEvent) => {
+			void (async () => {
+				if (e.key === 'Enter')  { await doSave(); }
+				if (e.key === 'Escape') {
+					// 새 탭 취소 시 삭제
+					const isNew = this.plugin.settings.reference.customTabs.find(t => t.id === tab.id)?.displayName === '새 탭';
+					if (isNew) { void this.deleteTab(tab.id); return; }
+					this.editingTabId = null;
+					this.renderBoard();
+				}
+			})();
 		});
 
 		const cancelBtn = formEl.createSpan({text: '✗', cls: 'ref-tab-form-btn ref-tab-form-cancel'});
 		cancelBtn.addEventListener('click', () => {
 			const isNew = this.plugin.settings.reference.customTabs.find(t => t.id === tab.id)?.displayName === '새 탭';
-			if (isNew) { this.deleteTab(tab.id); return; }
+			if (isNew) { void this.deleteTab(tab.id); return; }
 			this.editingTabId = null;
 			this.renderBoard();
 		});
@@ -411,15 +421,16 @@ export class KanbanView extends ItemView {
 
 		const inputEl = contentEl.createEl('input', {
 			cls: 'kanban-input',
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			attr: {type: 'text', placeholder: '[[노트 제목]] 입력 후 Enter'},
 		});
-		inputEl.addEventListener('keydown', async (e: KeyboardEvent) => {
+		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
 			if (e.key !== 'Enter') return;
 			const raw = inputEl.value.trim();
 			if (!raw) return;
 			const title = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
 			if (!title) return;
-			await this.addRefItem(tabId, title);
+			void this.addRefItem(tabId, title);
 			inputEl.value = '';
 		});
 
@@ -439,12 +450,12 @@ export class KanbanView extends ItemView {
 			if (!contentEl.contains(e.relatedTarget as Node))
 				contentEl.removeClass('ref-content-dragover');
 		});
-		contentEl.addEventListener('drop', async (e: DragEvent) => {
+		contentEl.addEventListener('drop', (e: DragEvent) => {
 			e.preventDefault();
 			contentEl.removeClass('ref-content-dragover');
 			if ((e.target as HTMLElement).closest('.ref-item')) return;
 			const title = this.extractNoteTitleFromDrop(e);
-			if (title) await this.addRefItem(tabId, title);
+			if (title) void this.addRefItem(tabId, title);
 		});
 	}
 
@@ -459,15 +470,15 @@ export class KanbanView extends ItemView {
 		itemEl.addEventListener('dragend', () => { itemEl.removeClass('kanban-item-dragging'); this.clearDragIndicators(); });
 
 		const linkEl = itemEl.createEl('a', {text: item.noteTitle, cls: 'kanban-link'});
-		linkEl.addEventListener('click', (e: MouseEvent) => { e.preventDefault(); this.app.workspace.openLinkText(item.noteTitle, '', false); });
+		linkEl.addEventListener('click', (e: MouseEvent) => { e.preventDefault(); void this.app.workspace.openLinkText(item.noteTitle, '', false); });
 		linkEl.addEventListener('mouseover', (e: MouseEvent) => {
 			this.app.workspace.trigger('hover-link', {event: e, source: VIEW_TYPE_KANBAN, hoverParent: this, targetEl: linkEl, linktext: item.noteTitle, sourcePath: ''});
 		});
 
 		const deleteBtn = itemEl.createSpan({text: '×', cls: 'kanban-item-delete'});
-		deleteBtn.addEventListener('click', async (e: MouseEvent) => {
+		deleteBtn.addEventListener('click', (e: MouseEvent) => {
 			e.stopPropagation();
-			await this.removeRefItem(tabId, item.noteTitle);
+			void this.removeRefItem(tabId, item.noteTitle);
 		});
 	}
 

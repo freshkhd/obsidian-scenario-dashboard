@@ -16,12 +16,12 @@ export default class ScenarioPlugin extends Plugin {
 		);
 
 		this.addRibbonIcon('layout-dashboard', '시나리오 대시보드 열기', () => {
-			this.activateView();
+			void this.activateView();
 		});
 
 		this.addCommand({
 			id: 'open-scenario-dashboard',
-			name: 'Open scenario dashboard',
+			name: 'Open dashboard',
 			callback: () => this.activateView(),
 		});
 
@@ -56,7 +56,7 @@ export default class ScenarioPlugin extends Plugin {
 				}
 
 				if (changed) {
-					this.saveSettings();
+					void this.saveSettings();
 					this.app.workspace.getLeavesOfType(VIEW_TYPE_KANBAN).forEach(leaf => {
 						(leaf.view as KanbanView).refresh();
 					});
@@ -72,12 +72,12 @@ export default class ScenarioPlugin extends Plugin {
 			leaf = workspace.getLeaf('tab');
 			await leaf.setViewState({type: VIEW_TYPE_KANBAN, active: true});
 		}
-		workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
 	}
 
 	async loadSettings() {
-		const raw = await this.loadData();
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw);
+		const raw = await this.loadData() as Partial<ScenarioPluginSettings>;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw) as ScenarioPluginSettings;
 
 		// ── 칸반 초기화 ────────────────────────────────────────────────
 		if (!this.settings.kanban) this.settings.kanban = DEFAULT_KANBAN_DATA;
