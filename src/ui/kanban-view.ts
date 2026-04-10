@@ -1,7 +1,7 @@
 import {App, ItemView, Modal, Notice, WorkspaceLeaf} from 'obsidian';
 import type ScenarioPlugin from '../main';
 import {ColumnDef, ColumnId, KanbanItem, ReferenceTab} from '../types';
-import {COLUMN_DEFS, VIEW_TYPE_KANBAN} from '../utils/constants';
+import {COLUMN_DEFS, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from '../utils/constants';
 
 // ── 드래그 페이로드 ───────────────────────────────────────────────────
 
@@ -31,10 +31,14 @@ function generateTabId(): string {
 export class KanbanView extends ItemView {
 	plugin: ScenarioPlugin;
 
-	private activeTabId  = '';
-	private panelOpen    = true;
+	private activeTabId    = '';
+	private panelOpen      = true;
 	/** 인라인 편집 중인 탭 ID (null이면 편집 없음) */
-	private editingTabId: string | null = null;
+	private editingTabId:  string | null  = null;
+	/** 인라인 편집 중인 칸반 컬럼 ID (null이면 편집 없음) */
+	private editingColId:  ColumnId | null = null;
+	/** 참고자료 패널 제목 인라인 편집 중 여부 */
+	private editingRefTitle = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ScenarioPlugin) {
 		super(leaf);
@@ -79,7 +83,40 @@ export class KanbanView extends ItemView {
 
 	private renderColumn(parent: HTMLElement, colDef: ColumnDef): void {
 		const columnEl = parent.createDiv({cls: 'kanban-column'});
-		columnEl.createEl('h3', {text: this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName, cls: 'kanban-column-title'});
+
+		// ── 컬럼 제목 (더블클릭으로 인라인 편집) ─────────────────────
+		if (this.editingColId === colDef.id) {
+			const nameInput = columnEl.createEl('input', {
+				cls: 'kanban-column-title-input',
+				attr: {type: 'text', value: this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName},
+			});
+			nameInput.addEventListener('keydown', (e: KeyboardEvent) => {
+				if (e.key === 'Enter') {
+					const val = nameInput.value.trim();
+					if (val) this.plugin.settings.columnNames[colDef.id] = val;
+					void this.plugin.saveSettings();
+					this.editingColId = null;
+					this.renderBoard();
+				}
+				if (e.key === 'Escape') { this.editingColId = null; this.renderBoard(); }
+			});
+			nameInput.addEventListener('blur', () => {
+				if (this.editingColId !== colDef.id) return;
+				const val = nameInput.value.trim();
+				if (val) this.plugin.settings.columnNames[colDef.id] = val;
+				void this.plugin.saveSettings();
+				this.editingColId = null;
+				this.renderBoard();
+			});
+			setTimeout(() => { nameInput.select(); }, 0);
+		} else {
+			const titleEl = columnEl.createEl('h3', {
+				text: this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName,
+				cls: 'kanban-column-title',
+				attr: {title: 'Double-click to rename'},
+			});
+			titleEl.addEventListener('dblclick', () => { this.editingColId = colDef.id; this.renderBoard(); });
+		}
 
 		const inputEl = columnEl.createEl('input', {
 			cls: 'kanban-input',
@@ -215,14 +252,48 @@ export class KanbanView extends ItemView {
 	private renderReferencePanel(wrapperEl: HTMLElement): void {
 		const toggleBtn = wrapperEl.createDiv({cls: 'ref-panel-toggle'});
 		toggleBtn.createSpan({text: this.panelOpen ? '📂' : '📁'});
-		toggleBtn.addEventListener('click', () => { this.panelOpen = !this.panelOpen; this.renderBoard(); });
+		toggleBtn.addEventListener('click', () => {
+			this.panelOpen = !this.panelOpen;
+			this.editingRefTitle = false; // 패널 토글 시 편집 취소
+			this.renderBoard();
+		});
 
 		const panelEl = wrapperEl.createDiv({
 			cls: this.panelOpen ? 'ref-panel ref-panel-open' : 'ref-panel ref-panel-closed',
 		});
 		if (!this.panelOpen) return;
 
-		panelEl.createEl('h3', {text: this.plugin.settings.refPanelTitle, cls: 'ref-panel-title'});
+		// ── 패널 제목 (더블클릭으로 인라인 편집) ─────────────────────
+		if (this.editingRefTitle) {
+			const titleInput = panelEl.createEl('input', {
+				cls: 'ref-panel-title-input',
+				attr: {type: 'text', value: this.plugin.settings.refPanelTitle},
+			});
+			titleInput.addEventListener('keydown', (e: KeyboardEvent) => {
+				if (e.key === 'Enter') {
+					this.plugin.settings.refPanelTitle = titleInput.value.trim() || DEFAULT_REF_PANEL_TITLE;
+					void this.plugin.saveSettings();
+					this.editingRefTitle = false;
+					this.renderBoard();
+				}
+				if (e.key === 'Escape') { this.editingRefTitle = false; this.renderBoard(); }
+			});
+			titleInput.addEventListener('blur', () => {
+				if (!this.editingRefTitle) return;
+				this.plugin.settings.refPanelTitle = titleInput.value.trim() || DEFAULT_REF_PANEL_TITLE;
+				void this.plugin.saveSettings();
+				this.editingRefTitle = false;
+				this.renderBoard();
+			});
+			setTimeout(() => { titleInput.select(); }, 0);
+		} else {
+			const titleEl = panelEl.createEl('h3', {
+				text: this.plugin.settings.refPanelTitle,
+				cls: 'ref-panel-title',
+				attr: {title: 'Double-click to rename'},
+			});
+			titleEl.addEventListener('dblclick', () => { this.editingRefTitle = true; this.renderBoard(); });
+		}
 		this.renderTabBar(panelEl);
 
 		if (this.activeTabId) {
@@ -422,7 +493,7 @@ export class KanbanView extends ItemView {
 		const inputEl = contentEl.createEl('input', {
 			cls: 'kanban-input',
 			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			attr: {type: 'text', placeholder: '[[노트 제목]] 입력 후 Enter'},
+			attr: {type: 'text', placeholder: '[[Note Title]] or plain text + Enter'},
 		});
 		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
 			if (e.key !== 'Enter') return;
