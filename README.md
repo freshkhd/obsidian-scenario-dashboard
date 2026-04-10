@@ -1,90 +1,128 @@
-# Obsidian Sample Plugin
+# Obsidian Scenario Dashboard
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+[![CI – Lint](https://github.com/freshkhd/obsidian-scenario-dashboard/actions/workflows/lint.yml/badge.svg)](https://github.com/freshkhd/obsidian-scenario-dashboard/actions/workflows/lint.yml)
+![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=7C3AED&label=downloads&query=%24%5B%22obsidian-scenario-dashboard%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)
+![License](https://img.shields.io/badge/license-0--BSD-blue)
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+A **Scrivener-inspired kanban dashboard** for [Obsidian](https://obsidian.md) designed for writers, screenwriters, and storytellers. Manage your entire writing pipeline — from raw ideas to finished projects — without ever leaving your vault.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+---
 
-## First time developing plugins?
+## ✨ Features
 
-Quick starting guide for new plugin devs:
+### Kanban Pipeline Board
+- **Three-stage pipeline** out of the box: 💡 Ideas → 🗺️ Plot Development → 🎬 Project
+- Add notes by typing a `[[wiki-link]]` or plain title and pressing **Enter**
+- **Drag notes from the File Explorer** directly into any column
+- **Reorder cards** within a column via drag-and-drop
+- **Nest notes as sub-items** — drop a card onto the center of another to create a parent–child hierarchy
+- Move cards between columns with drag-and-drop; duplicate detection prevents double entries
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Native Obsidian Integration
+- **Hover preview** — hover over any linked note and press **Ctrl** (or **⌘** on macOS) to see a live popup preview, exactly like native wiki-links
+- **Auto-rename sync** — rename a note in Obsidian and every kanban card and reference item updates automatically; no broken links
 
-## Releasing new releases
+### Collapsible Reference Panel
+- Slide-in **reference panel** on the right side of the dashboard (toggle with the 📂/📁 button)
+- **Fully dynamic tabs** — create, rename, reorder, and delete tabs to match your project structure
+  - **Add** a tab with the `+` button
+  - **Rename** by double-clicking a tab label
+  - **Delete** via the `×` button (with a confirmation dialog)
+  - **Reorder** tabs by dragging them left or right
+- Drag reference items directly onto kanban cards to add them as pipeline entries or sub-items
+- Drag kanban cards into the reference panel to store them as reference material
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+---
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## 📦 Installation
 
-## Adding your plugin to the community plugin list
+### Option A — BRAT (Recommended for beta users)
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) lets you install plugins directly from GitHub without waiting for the community plugin store.
 
-## How to use
+1. Install the **BRAT** plugin from the Obsidian Community Plugin directory.
+2. Open **Settings → BRAT → Add Beta Plugin**.
+3. Paste the repository URL:
+   ```
+   https://github.com/freshkhd/obsidian-scenario-dashboard
+   ```
+4. Click **Add Plugin** and enable it in **Settings → Community Plugins**.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### Option B — Manual Installation
 
-## Manually installing the plugin
+1. Go to the [Releases](https://github.com/freshkhd/obsidian-scenario-dashboard/releases) page and download the latest:
+   - `main.js`
+   - `styles.css`
+   - `manifest.json`
+2. Copy all three files into your vault at:
+   ```
+   <YourVault>/.obsidian/plugins/obsidian-scenario-dashboard/
+   ```
+3. Reload Obsidian and enable **Scenario Dashboard** in **Settings → Community Plugins**.
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+---
 
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+## 🚀 Usage
 
-## Funding URL
+| Action | How |
+|---|---|
+| Open the dashboard | Click the **grid icon** in the left ribbon, or run `Open dashboard` from the Command Palette |
+| Add a note to a column | Type `[[Note Title]]` or just `Note Title` in the column's input field and press **Enter** |
+| Drop a note from File Explorer | Drag any `.md` file from the File Explorer onto a column or card |
+| Reorder cards | Drag a card up or down within its column |
+| Nest a card as a sub-item | Drag a card and drop it onto the **center** of another card |
+| Open a note | Click the note title link |
+| Preview a note | Hover over the title, then press **Ctrl** / **⌘** |
+| Open / close Reference Panel | Click the 📂 / 📁 toggle button on the right edge of the board |
+| Add a reference tab | Click the `+` button in the tab bar |
+| Rename a tab | Double-click the tab label |
+| Delete a tab | Hover the tab → click `×` → confirm |
+| Reorder tabs | Drag a tab left or right |
 
-You can include funding URLs where people who use your plugin can financially support it.
+---
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+## 🛠 Development
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v16+
+- [npm](https://www.npmjs.com/)
+
+### Setup
+
+```bash
+git clone https://github.com/freshkhd/obsidian-scenario-dashboard.git
+cd obsidian-scenario-dashboard
+npm install
 ```
 
-If you have multiple URLs, you can also do:
+### Scripts
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+| Command | Description |
+|---|---|
+| `npm run dev` | Watch mode — auto-compile on file changes |
+| `npm run build` | Type-check + production bundle |
+| `npm run lint` | Run ESLint (enforces Obsidian plugin guidelines) |
+
+### Project Structure
+
+```
+src/
+├── main.ts              # Plugin entry point, settings load/save, rename sync
+├── settings.ts          # Settings interface & defaults
+├── types.ts             # Shared TypeScript interfaces
+├── ui/
+│   └── kanban-view.ts   # Main view — kanban board + reference panel
+└── utils/
+    └── constants.ts     # Column definitions, default tab list
 ```
 
-## API Documentation
+### Contributing
 
-See https://docs.obsidian.md
+Pull requests are welcome. Please make sure `npm run lint` passes before submitting.
+
+---
+
+## 📄 License
+
+[0-BSD](LICENSE) — free to use, modify, and distribute with no restrictions.
