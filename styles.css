@@ -1,8 +1,407 @@
-/*
+/* ═══════════════════════════════════════════════════════════════════════
+   전체 레이아웃: 칸반 + 참고자료 패널
+   ═══════════════════════════════════════════════════════════════════════ */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.kanban-wrapper {
+	display: flex;
+	height: 100%;
+	overflow: hidden;
+}
 
-If your plugin does not need CSS, delete this file.
+.kanban-board {
+	display: flex;
+	gap: 16px;
+	padding: 16px;
+	flex: 1;
+	overflow-x: auto;
+	min-width: 0;
+}
 
-*/
+/* ═══════════════════════════════════════════════════════════════════════
+   칸반 컬럼
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.kanban-column {
+	flex: 1 1 0;
+	min-width: 220px;
+	max-width: 400px;
+	background-color: var(--background-secondary);
+	border-radius: 8px;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+}
+
+.kanban-column-dragover {
+	outline: 2px dashed var(--interactive-accent);
+	background-color: var(--background-secondary-alt);
+}
+
+.kanban-column-title {
+	margin: 0 0 8px 0;
+	font-size: 1.1em;
+	font-weight: 600;
+	color: var(--text-normal);
+	text-align: center;
+}
+
+.kanban-input {
+	width: 100%;
+	padding: 6px 8px;
+	margin-bottom: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+	box-sizing: border-box;
+}
+
+.kanban-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.kanban-items {
+	flex: 1;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   칸반 아이템
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.kanban-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 10px;
+	background-color: var(--background-primary);
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.kanban-item:hover {
+	border-color: var(--interactive-accent);
+}
+
+.kanban-link {
+	color: var(--text-accent);
+	cursor: pointer;
+	text-decoration: none;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.kanban-link:hover {
+	text-decoration: underline;
+}
+
+.kanban-item-delete {
+	color: var(--text-faint);
+	cursor: pointer;
+	margin-left: 8px;
+	font-size: 0.85em;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.kanban-item:hover .kanban-item-delete,
+.ref-item:hover .kanban-item-delete {
+	opacity: 1;
+}
+
+.kanban-item-delete:hover {
+	color: var(--text-error);
+}
+
+/* ── 자식(하위 링크) 아이템 ──────────────────────────────────── */
+.kanban-item-child {
+	background-color: var(--background-secondary-alt);
+	border-left: 3px solid var(--interactive-accent);
+	font-size: 0.88em;
+}
+
+/* ── 드래그 중인 아이템 ─────────────────────────────────────── */
+.kanban-item-dragging {
+	opacity: 0.4;
+}
+
+/* ── 드래그 위치 인디케이터 ─────────────────────────────────── */
+.kanban-item-drag-before {
+	border-top: 2px solid var(--interactive-accent) !important;
+	margin-top: -1px;
+}
+
+.kanban-item-drag-after {
+	border-bottom: 2px solid var(--interactive-accent) !important;
+	margin-bottom: -1px;
+}
+
+.kanban-item-drag-child {
+	outline: 2px solid var(--color-green) !important;
+	background-color: color-mix(in srgb, var(--color-green) 15%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   참고자료 패널 (Reference Panel)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* 토글 버튼 */
+.ref-panel-toggle {
+	width: 28px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding-top: 16px;
+	cursor: pointer;
+	user-select: none;
+	font-size: 1.1em;
+	flex-shrink: 0;
+	border-left: 1px solid var(--background-modifier-border);
+	transition: background-color 0.15s;
+}
+
+.ref-panel-toggle:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* 패널 */
+.ref-panel {
+	flex-shrink: 0;
+	overflow: hidden;
+	transition: width 0.2s ease;
+	border-left: 1px solid var(--background-modifier-border);
+	background-color: var(--background-secondary);
+	display: flex;
+	flex-direction: column;
+}
+
+.ref-panel-open {
+	width: 280px;
+	padding: 12px;
+}
+
+.ref-panel-closed {
+	width: 0;
+	padding: 0;
+	border-left: none;
+}
+
+/* 패널 헤더 */
+.ref-panel-title {
+	margin: 0 0 10px 0;
+	font-size: 1em;
+	font-weight: 600;
+	color: var(--text-normal);
+	text-align: center;
+	white-space: nowrap;
+}
+
+/* ── 탭 바 ──────────────────────────────────────────────────── */
+.ref-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 10px;
+}
+
+.ref-tab {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	padding: 4px 7px;
+	border-radius: 4px;
+	font-size: 0.78em;
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	color: var(--text-muted);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	transition: all 0.15s;
+}
+
+.ref-tab:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.ref-tab-active {
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.ref-tab-active:hover {
+	color: var(--text-on-accent);
+}
+
+/* "+" 새 탭 버튼 */
+.ref-tab-add {
+	font-weight: 700;
+	font-size: 0.9em;
+	padding: 2px 7px;
+	opacity: 0.6;
+}
+.ref-tab-add:hover {
+	opacity: 1;
+}
+
+/* ── 탭 드래그 인디케이터 ───────────────────────────────────── */
+.ref-tab-dragging {
+	opacity: 0.35;
+}
+
+.ref-tab-drag-before {
+	border-left: 2px solid var(--interactive-accent) !important;
+	margin-left: -1px;
+}
+
+.ref-tab-drag-after {
+	border-right: 2px solid var(--interactive-accent) !important;
+	margin-right: -1px;
+}
+
+/* hover 시 표시되는 × 탭 삭제 버튼 */
+.ref-tab-delete-btn {
+	opacity: 0;
+	font-size: 0.85em;
+	font-weight: 600;
+	color: var(--text-muted);
+	cursor: pointer;
+	margin-left: 3px;
+	flex-shrink: 0;
+	line-height: 1;
+	transition: opacity 0.15s, color 0.15s;
+}
+.ref-tab:hover .ref-tab-delete-btn {
+	opacity: 0.6;
+}
+.ref-tab-delete-btn:hover {
+	opacity: 1 !important;
+	color: var(--text-error);
+}
+
+/* ── 탭 인라인 편집 폼 (이름만) ─────────────────────────────── */
+.ref-tab-form {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	background-color: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	border-radius: 4px;
+	padding: 3px 6px;
+}
+
+.ref-tab-form-name {
+	width: 90px;
+	padding: 2px 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 3px;
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 0.8em;
+	box-sizing: border-box;
+}
+
+.ref-tab-form-name:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.ref-tab-form-btn {
+	cursor: pointer;
+	font-size: 0.85em;
+	padding: 1px 3px;
+	border-radius: 3px;
+	flex-shrink: 0;
+	transition: background-color 0.1s;
+}
+
+.ref-tab-form-save {
+	color: var(--color-green);
+}
+.ref-tab-form-save:hover {
+	background-color: color-mix(in srgb, var(--color-green) 20%, transparent);
+}
+
+.ref-tab-form-cancel {
+	color: var(--text-muted);
+}
+.ref-tab-form-cancel:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* ── 탭 삭제 확인 모달 ──────────────────────────────────────── */
+.confirm-modal-title {
+	margin: 0 0 10px 0;
+	font-size: 1.1em;
+}
+
+.confirm-modal-desc {
+	color: var(--text-muted);
+	margin-bottom: 18px;
+	font-size: 0.9em;
+}
+
+.confirm-modal-btns {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.confirm-modal-btns button {
+	padding: 5px 14px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.9em;
+}
+
+/* ── 탭 콘텐츠 ─────────────────────────────────────────────── */
+.ref-tab-content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.ref-content-dragover {
+	outline: 2px dashed var(--interactive-accent);
+	border-radius: 4px;
+}
+
+.ref-items {
+	flex: 1;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+/* ── 참고자료 아이템 ───────────────────────────────────────── */
+.ref-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 8px;
+	background-color: var(--background-primary);
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	font-size: 0.88em;
+	cursor: grab;
+}
+
+.ref-item:hover {
+	border-color: var(--interactive-accent);
+}
+
+.ref-item:active {
+	cursor: grabbing;
+}
