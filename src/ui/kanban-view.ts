@@ -577,9 +577,13 @@ export class KanbanView extends ItemView {
 
 	/**
 	 * 드래그 이벤트에서 노트 제목 배열을 추출한다.
-	 * 파일 탐색기에서 여러 노트를 동시에 드래그하면
-	 * text/plain에 "[[제목1]]\n[[제목2]]\n..." 형태로 전달되므로
-	 * 정규식으로 개별 파싱하여 배열로 반환한다.
+	 *
+	 * Obsidian 파일 탐색기는 드래그 데이터를 여러 형태로 보낸다:
+	 *   1) obsidian://open?vault=...&file=... URI (단일 또는 다중)
+	 *   2) [[제목1]]\n[[제목2]] 형태의 위키링크 목록
+	 *   3) 일반 텍스트(plain text)
+	 *
+	 * 단일·다중 선택 모두 개별 노트 제목 배열로 반환한다.
 	 */
 	private extractNoteTitlesFromDrop(e: DragEvent): string[] {
 		const dt = e.dataTransfer;
@@ -587,26 +591,39 @@ export class KanbanView extends ItemView {
 
 		const textData = dt.getData('text/plain');
 		if (textData) {
-			// obsidian:// 단일 URI (파일 탐색기 단일 선택)
-			if (textData.startsWith('obsidian://')) {
-				const url = new URL(textData);
-				const fp = url.searchParams.get('file');
-				if (!fp) return [];
-				const title = decodeURIComponent(fp).replace(/\.md$/i, '').trim();
-				return title ? [title] : [];
+			// ① obsidian:// URI를 텍스트 어디서든 전부 추출
+			//    (제목 텍스트 뒤에 URI가 바로 붙는 경우도 처리)
+			const uriMatches = [...textData.matchAll(/obsidian:\/\/open\?[^\s\n]*/g)];
+			if (uriMatches.length > 0) {
+				const titles: string[] = [];
+				for (const m of uriMatches) {
+					try {
+						const url = new URL(m[0]);
+						const fp = url.searchParams.get('file');
+						if (!fp) continue;
+						const decoded = decodeURIComponent(fp);
+						const name = decoded.replace(/\.md$/i, '').split('/').pop()?.trim();
+						if (name) titles.push(name);
+					} catch { /* malformed URI → skip */ }
+				}
+				if (titles.length > 0) return titles;
 			}
 
-			// [[제목]] 패턴을 모두 추출 (다중 선택 드래그 대응)
-			const matches = [...textData.matchAll(/\[\[([^\]]+)\]\]/g)];
-			if (matches.length > 0) {
-				return matches
+			// ② [[제목]] 위키링크 패턴 (다중 선택 드래그)
+			const wikiMatches = [...textData.matchAll(/\[\[([^\]]+)\]\]/g)];
+			if (wikiMatches.length > 0) {
+				return wikiMatches
 					.map(m => (m[1] ?? '').replace(/\.md$/i, '').trim())
 					.filter(Boolean);
 			}
 
-			// 폴백: [[]] 없는 plain text 한 줄
-			const title = textData.replace(/\.md$/i, '').trim();
-			return title ? [title] : [];
+			// ③ 폴백: 줄 단위로 분리 후 URI가 아닌 텍스트만 수집
+			const titles = textData.split(/\r?\n/)
+				.map(line => line.trim())
+				.filter(line => line && !line.startsWith('obsidian://'))
+				.map(line => line.replace(/\.md$/i, '').trim())
+				.filter(Boolean);
+			return titles;
 		}
 
 		// Windows 탐색기에서 파일 드래그
