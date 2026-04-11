@@ -1,6 +1,6 @@
 import {App, PluginSettingTab, Setting} from 'obsidian';
 import type ScenarioPlugin from '../main';
-import {COLUMN_DEFS, DEFAULT_COLUMN_NAMES, DEFAULT_REF_PANEL_TITLE} from '../utils/constants';
+import {COLUMN_DEFS, DEFAULT_COLUMN_NAMES, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE} from '../utils/constants';
 
 export class ScenarioSettingTab extends PluginSettingTab {
 	plugin: ScenarioPlugin;
@@ -19,8 +19,8 @@ export class ScenarioSettingTab extends PluginSettingTab {
 
 		for (const colDef of COLUMN_DEFS) {
 			new Setting(containerEl)
-				.setName(colDef.displayName)
-				.setDesc(`Rename this column. Default: "${DEFAULT_COLUMN_NAMES[colDef.id]}"`)
+				.setName(`${colDef.emoji} ${DEFAULT_COLUMN_NAMES[colDef.id]}`)
+				.setDesc(`Text label only — the ${colDef.emoji} emoji is fixed. Default: "${DEFAULT_COLUMN_NAMES[colDef.id]}"`)
 				.addText(text => {
 					text
 						.setValue(this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName)
@@ -37,8 +37,8 @@ export class ScenarioSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName('Reference panel').setHeading();
 
 		new Setting(containerEl)
-			.setName('Panel title')
-			.setDesc(`Title shown at the top of the reference panel. Default: "${DEFAULT_REF_PANEL_TITLE}"`)
+			.setName(`${DEFAULT_REF_PANEL_EMOJI} Panel title`)
+			.setDesc(`Text label only — the ${DEFAULT_REF_PANEL_EMOJI} emoji is fixed. Default: "${DEFAULT_REF_PANEL_TITLE}"`)
 			.addText(text => {
 				text
 					.setValue(this.plugin.settings.refPanelTitle)

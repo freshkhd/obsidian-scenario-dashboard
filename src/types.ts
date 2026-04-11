@@ -12,7 +12,8 @@ export interface KanbanData {
 
 export interface ColumnDef {
 	id: ColumnId;
-	displayName: string;
+	emoji: string;       // fixed emoji prefix (not editable by user)
+	displayName: string; // default text label (editable by user)
 	placeholder: string;
 }
 

@@ -1,7 +1,7 @@
 import {App, ItemView, Modal, Notice, WorkspaceLeaf} from 'obsidian';
 import type ScenarioPlugin from '../main';
 import {ColumnDef, ColumnId, KanbanItem, ReferenceTab} from '../types';
-import {COLUMN_DEFS, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from '../utils/constants';
+import {COLUMN_DEFS, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from '../utils/constants';
 
 // ── 드래그 페이로드 ───────────────────────────────────────────────────
 
@@ -84,16 +84,17 @@ export class KanbanView extends ItemView {
 	private renderColumn(parent: HTMLElement, colDef: ColumnDef): void {
 		const columnEl = parent.createDiv({cls: 'kanban-column'});
 
-		// ── 컬럼 제목 (더블클릭으로 인라인 편집) ─────────────────────
+		// ── 컬럼 제목 (더블클릭으로 인라인 편집 / 이모지는 고정) ──────
 		if (this.editingColId === colDef.id) {
-			const nameInput = columnEl.createEl('input', {
+			const editRow = columnEl.createDiv({cls: 'kanban-column-title-edit'});
+			editRow.createSpan({text: colDef.emoji, cls: 'kanban-column-title-emoji'});
+			const nameInput = editRow.createEl('input', {
 				cls: 'kanban-column-title-input',
 				attr: {type: 'text', value: this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName},
 			});
 			nameInput.addEventListener('keydown', (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
-					const val = nameInput.value.trim();
-					if (val) this.plugin.settings.columnNames[colDef.id] = val;
+					this.plugin.settings.columnNames[colDef.id] = nameInput.value.trim() || colDef.displayName;
 					void this.plugin.saveSettings();
 					this.editingColId = null;
 					this.renderBoard();
@@ -102,8 +103,7 @@ export class KanbanView extends ItemView {
 			});
 			nameInput.addEventListener('blur', () => {
 				if (this.editingColId !== colDef.id) return;
-				const val = nameInput.value.trim();
-				if (val) this.plugin.settings.columnNames[colDef.id] = val;
+				this.plugin.settings.columnNames[colDef.id] = nameInput.value.trim() || colDef.displayName;
 				void this.plugin.saveSettings();
 				this.editingColId = null;
 				this.renderBoard();
@@ -111,7 +111,7 @@ export class KanbanView extends ItemView {
 			setTimeout(() => { nameInput.select(); }, 0);
 		} else {
 			const titleEl = columnEl.createEl('h3', {
-				text: this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName,
+				text: `${colDef.emoji} ${this.plugin.settings.columnNames[colDef.id] ?? colDef.displayName}`,
 				cls: 'kanban-column-title',
 				attr: {title: 'Double-click to rename'},
 			});
@@ -263,9 +263,11 @@ export class KanbanView extends ItemView {
 		});
 		if (!this.panelOpen) return;
 
-		// ── 패널 제목 (더블클릭으로 인라인 편집) ─────────────────────
+		// ── 패널 제목 (더블클릭으로 인라인 편집 / 이모지는 고정) ──────
 		if (this.editingRefTitle) {
-			const titleInput = panelEl.createEl('input', {
+			const editRow = panelEl.createDiv({cls: 'ref-panel-title-edit'});
+			editRow.createSpan({text: DEFAULT_REF_PANEL_EMOJI, cls: 'ref-panel-title-emoji'});
+			const titleInput = editRow.createEl('input', {
 				cls: 'ref-panel-title-input',
 				attr: {type: 'text', value: this.plugin.settings.refPanelTitle},
 			});
@@ -288,7 +290,7 @@ export class KanbanView extends ItemView {
 			setTimeout(() => { titleInput.select(); }, 0);
 		} else {
 			const titleEl = panelEl.createEl('h3', {
-				text: this.plugin.settings.refPanelTitle,
+				text: `${DEFAULT_REF_PANEL_EMOJI} ${this.plugin.settings.refPanelTitle}`,
 				cls: 'ref-panel-title',
 				attr: {title: 'Double-click to rename'},
 			});

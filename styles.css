@@ -50,16 +50,30 @@
 	color: var(--interactive-accent);
 }
 
-/* 컬럼 제목 인라인 편집 입력창 */
-.kanban-column-title-input {
-	width: 100%;
-	padding: 4px 8px;
+/* 컬럼 제목 인라인 편집 행 (이모지 고정 + 텍스트 입력) */
+.kanban-column-title-edit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
 	margin-bottom: 8px;
+}
+
+.kanban-column-title-emoji {
+	font-size: 1.1em;
+	flex-shrink: 0;
+	line-height: 1;
+}
+
+.kanban-column-title-input {
+	flex: 1;
+	min-width: 0;
+	padding: 3px 6px;
 	border: 1px solid var(--interactive-accent);
 	border-radius: 4px;
 	background-color: var(--background-primary);
 	color: var(--text-normal);
-	font-size: 1.1em;
+	font-size: 1em;
 	font-weight: 600;
 	text-align: center;
 	box-sizing: border-box;
@@ -229,21 +243,34 @@
 	color: var(--interactive-accent);
 }
 
-/* 참고자료 패널 제목 인라인 편집 입력창 */
-.ref-panel-title-input {
-	width: 100%;
-	padding: 3px 6px;
+/* 참고자료 패널 제목 인라인 편집 행 (이모지 고정 + 텍스트 입력) */
+.ref-panel-title-edit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
 	margin-bottom: 10px;
+}
+
+.ref-panel-title-emoji {
+	font-size: 1em;
+	flex-shrink: 0;
+	line-height: 1;
+}
+
+.ref-panel-title-input {
+	flex: 1;
+	min-width: 0;
+	padding: 2px 5px;
 	border: 1px solid var(--interactive-accent);
 	border-radius: 4px;
 	background-color: var(--background-primary);
 	color: var(--text-normal);
-	font-size: 1em;
+	font-size: 0.95em;
 	font-weight: 600;
 	text-align: center;
 	box-sizing: border-box;
 	outline: none;
-	white-space: nowrap;
 }
 
 /* ── 탭 바 ──────────────────────────────────────────────────── */

@@ -2,7 +2,7 @@ import {Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, ScenarioPluginSettings} from './settings';
 import {KanbanView} from './ui/kanban-view';
 import {ScenarioSettingTab} from './ui/settings-tab';
-import {COLUMN_DEFS, DEFAULT_COLUMN_NAMES, DEFAULT_KANBAN_DATA, DEFAULT_REFERENCE_DATA, DEFAULT_REFERENCE_TABS, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from './utils/constants';
+import {COLUMN_DEFS, DEFAULT_COLUMN_NAMES, DEFAULT_KANBAN_DATA, DEFAULT_REFERENCE_DATA, DEFAULT_REFERENCE_TABS, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from './utils/constants';
 import {ColumnId, KanbanItem} from './types';
 
 export default class ScenarioPlugin extends Plugin {
@@ -130,10 +130,15 @@ export default class ScenarioPlugin extends Plugin {
 		if (!this.settings.columnNames) {
 			this.settings.columnNames = {...DEFAULT_COLUMN_NAMES};
 		} else {
-			// 누락된 컬럼 보정
 			for (const colDef of COLUMN_DEFS) {
 				if (!this.settings.columnNames[colDef.id]) {
 					this.settings.columnNames[colDef.id] = DEFAULT_COLUMN_NAMES[colDef.id];
+				} else {
+					// 구버전: 이모지가 포함된 값이면 이모지 접두사 제거
+					const stored = this.settings.columnNames[colDef.id];
+					if (stored.startsWith(colDef.emoji)) {
+						this.settings.columnNames[colDef.id] = stored.slice(colDef.emoji.length).trimStart() || DEFAULT_COLUMN_NAMES[colDef.id];
+					}
 				}
 			}
 		}
@@ -141,6 +146,9 @@ export default class ScenarioPlugin extends Plugin {
 		// ── 참고자료 패널 제목 초기화 ────────────────────────────────────
 		if (!this.settings.refPanelTitle) {
 			this.settings.refPanelTitle = DEFAULT_REF_PANEL_TITLE;
+		} else if (this.settings.refPanelTitle.startsWith(DEFAULT_REF_PANEL_EMOJI)) {
+			// 구버전: 이모지가 포함된 값이면 제거
+			this.settings.refPanelTitle = this.settings.refPanelTitle.slice(DEFAULT_REF_PANEL_EMOJI.length).trimStart() || DEFAULT_REF_PANEL_TITLE;
 		}
 	}
 
