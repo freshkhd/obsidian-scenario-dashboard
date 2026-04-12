@@ -97,6 +97,51 @@
 	outline: none;
 }
 
+/* ── 노트 검색 드롭다운 ─────────────────────────────────────── */
+.kanban-search-wrapper {
+	position: relative;
+	margin-bottom: 8px;
+}
+
+.kanban-search-wrapper .kanban-input {
+	margin-bottom: 0;
+}
+
+.kanban-search-dropdown {
+	display: none; /* 기본 숨김 — is-open 클래스로 표시 */
+	position: absolute;
+	top: calc(100% + 2px);
+	left: 0;
+	right: 0;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	max-height: 200px;
+	overflow-y: auto;
+	z-index: 200;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.kanban-search-dropdown.is-open {
+	display: block;
+}
+
+.kanban-search-item {
+	padding: 6px 10px;
+	cursor: pointer;
+	font-size: 0.85em;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.kanban-search-item:hover,
+.kanban-search-item-selected {
+	background: var(--background-modifier-hover);
+	color: var(--interactive-accent);
+}
+
 .kanban-items {
 	flex: 1;
 	overflow-y: auto;

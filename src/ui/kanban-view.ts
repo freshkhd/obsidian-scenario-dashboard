@@ -118,19 +118,11 @@ export class KanbanView extends ItemView {
 			titleEl.addEventListener('dblclick', () => { this.editingColId = colDef.id; this.renderBoard(); });
 		}
 
-		const inputEl = columnEl.createEl('input', {
-			cls: 'kanban-input',
-			attr: {type: 'text', placeholder: colDef.placeholder},
-		});
-		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
-			if (e.key !== 'Enter') return;
-			const raw = inputEl.value.trim();
-			if (!raw) return;
-			const title = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
-			if (!title) return;
-			void this.addKanbanItem(colDef.id, title);
-			inputEl.value = '';
-		});
+		this.renderSearchInput(
+			columnEl,
+			colDef.placeholder,
+			(title) => this.addKanbanItem(colDef.id, title),
+		);
 
 		const itemsEl = columnEl.createDiv({cls: 'kanban-items'});
 		for (const item of this.plugin.settings.kanban.columns[colDef.id]) {
@@ -495,20 +487,11 @@ export class KanbanView extends ItemView {
 	private renderTabContent(panelEl: HTMLElement, tabId: string): void {
 		const contentEl = panelEl.createDiv({cls: 'ref-tab-content'});
 
-		const inputEl = contentEl.createEl('input', {
-			cls: 'kanban-input',
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			attr: {type: 'text', placeholder: '[[Note Title]] or plain text + Enter'},
-		});
-		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
-			if (e.key !== 'Enter') return;
-			const raw = inputEl.value.trim();
-			if (!raw) return;
-			const title = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
-			if (!title) return;
-			void this.addRefItem(tabId, title);
-			inputEl.value = '';
-		});
+		this.renderSearchInput(
+			contentEl,
+			'Search notes to add...',
+			(title) => this.addRefItem(tabId, title),
+		);
 
 		const itemsEl = contentEl.createDiv({cls: 'ref-items'});
 		const items = this.plugin.settings.reference.items[tabId] ?? [];
@@ -573,6 +556,90 @@ export class KanbanView extends ItemView {
 	private clearTabDragIndicators(): void {
 		document.querySelectorAll('.ref-tab-drag-before, .ref-tab-drag-after')
 			.forEach(el => el.classList.remove('ref-tab-drag-before', 'ref-tab-drag-after'));
+	}
+
+	/**
+	 * 볼트 노트 검색 입력창 + 드롭다운을 렌더링한다.
+	 * 타이핑하면 볼트 내 마크다운 파일 실시간 검색, 선택 시 onSelect 콜백 호출.
+	 * ↑↓ 키로 항목 이동, Enter로 선택, Escape로 닫기.
+	 */
+	private renderSearchInput(
+		parent: HTMLElement,
+		placeholder: string,
+		onSelect: (title: string) => Promise<void>,
+	): void {
+		const wrapperEl = parent.createDiv({cls: 'kanban-search-wrapper'});
+		const inputEl = wrapperEl.createEl('input', {
+			cls: 'kanban-input kanban-search-input',
+			attr: {type: 'text', placeholder},
+		});
+		// 드롭다운은 기본 숨김(CSS), 'is-open' 클래스로 토글
+		const dropdownEl = wrapperEl.createDiv({cls: 'kanban-search-dropdown'});
+
+		let selectedIdx = -1;
+
+		const hideDropdown = () => { dropdownEl.removeClass('is-open'); selectedIdx = -1; };
+		const showDropdown = () => { dropdownEl.addClass('is-open'); };
+
+		const doSelect = (title: string) => {
+			inputEl.value = '';
+			hideDropdown();
+			void onSelect(title);
+		};
+
+		const updateDropdown = (query: string) => {
+			dropdownEl.empty();
+			selectedIdx = -1;
+			if (!query) { hideDropdown(); return; }
+
+			const results = this.app.vault.getMarkdownFiles()
+				.filter(f => f.basename.toLowerCase().includes(query.toLowerCase()))
+				.slice(0, 10);
+
+			if (results.length === 0) { hideDropdown(); return; }
+
+			for (const file of results) {
+				const itemEl = dropdownEl.createDiv({cls: 'kanban-search-item', text: file.basename});
+				itemEl.addEventListener('mousedown', (e: MouseEvent) => {
+					e.preventDefault(); // blur 이전에 처리되도록
+					doSelect(file.basename);
+				});
+			}
+			showDropdown();
+		};
+
+		inputEl.addEventListener('input', () => {
+			updateDropdown(inputEl.value.trim());
+		});
+
+		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
+			const items = dropdownEl.querySelectorAll<HTMLElement>('.kanban-search-item');
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				selectedIdx = Math.min(selectedIdx + 1, items.length - 1);
+				items.forEach((el, i) => el.classList.toggle('kanban-search-item-selected', i === selectedIdx));
+			} else if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				selectedIdx = Math.max(selectedIdx - 1, -1);
+				items.forEach((el, i) => el.classList.toggle('kanban-search-item-selected', i === selectedIdx));
+			} else if (e.key === 'Enter') {
+				e.preventDefault();
+				const activeItem = items[selectedIdx];
+				if (selectedIdx >= 0 && activeItem) {
+					doSelect(activeItem.textContent ?? '');
+				} else {
+					const raw = inputEl.value.trim().replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
+					if (raw) doSelect(raw);
+				}
+			} else if (e.key === 'Escape') {
+				hideDropdown();
+				inputEl.blur();
+			}
+		});
+
+		inputEl.addEventListener('blur', () => {
+			setTimeout(() => { hideDropdown(); }, 150);
+		});
 	}
 
 	/**

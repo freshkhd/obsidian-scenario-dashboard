@@ -66,6 +66,48 @@ export default class ScenarioPlugin extends Plugin {
 				}
 			})
 		);
+
+		// 노트가 삭제되면 칸반 + 참고자료에서 자동 제거
+		this.registerEvent(
+			this.app.vault.on('delete', (file) => {
+				if (!(file instanceof TFile) || file.extension !== 'md') return;
+				const deletedTitle = file.basename;
+				let changed = false;
+
+				const filterItems = (items: KanbanItem[]): KanbanItem[] =>
+					items.filter(item => {
+						if (item.noteTitle === deletedTitle) { changed = true; return false; }
+						if (item.children?.length) {
+							const before = item.children.length;
+							item.children = item.children.filter(c => c.noteTitle !== deletedTitle);
+							if (item.children.length !== before) changed = true;
+						}
+						return true;
+					});
+
+				// 칸반
+				const cols = this.settings.kanban.columns;
+				for (const colId of Object.keys(cols) as ColumnId[]) {
+					cols[colId] = filterItems(cols[colId]);
+				}
+
+				// 참고자료
+				const refItems = this.settings.reference.items;
+				for (const tabId of Object.keys(refItems)) {
+					refItems[tabId] = (refItems[tabId] ?? []).filter(i => {
+						if (i.noteTitle === deletedTitle) { changed = true; return false; }
+						return true;
+					});
+				}
+
+				if (changed) {
+					void this.saveSettings();
+					this.app.workspace.getLeavesOfType(VIEW_TYPE_KANBAN).forEach(leaf => {
+						(leaf.view as KanbanView).refresh();
+					});
+				}
+			})
+		);
 	}
 
 	/** Re-render all open dashboard leaves (called after settings change). */
