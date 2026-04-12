@@ -3,9 +3,9 @@ import {ColumnDef, ColumnId, KanbanData, ReferenceData, ReferenceTab} from '../t
 export const VIEW_TYPE_KANBAN = 'scenario-kanban-dashboard';
 
 export const COLUMN_DEFS: ColumnDef[] = [
-	{id: 'ideas',           emoji: '💡', displayName: 'Ideas',            placeholder: '[[Note Title]] or plain text + Enter'},
-	{id: 'plot-development', emoji: '🗺️', displayName: 'Plot Development', placeholder: '[[Note Title]] or plain text + Enter'},
-	{id: 'project',          emoji: '🎬', displayName: 'Project',           placeholder: '[[Note Title]] or plain text + Enter'},
+	{id: 'ideas',           emoji: '💡', displayName: 'Ideas',            placeholder: 'Search notes to add...'},
+	{id: 'plot-development', emoji: '🗺️', displayName: 'Plot Development', placeholder: 'Search notes to add...'},
+	{id: 'project',          emoji: '🎬', displayName: 'Project',           placeholder: 'Search notes to add...'},
 ];
 
 /** Default text labels for each pipeline column (emoji excluded) */
