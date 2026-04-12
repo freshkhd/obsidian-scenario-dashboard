@@ -99,7 +99,6 @@
 
 /* ── 노트 검색 드롭다운 ─────────────────────────────────────── */
 .kanban-search-wrapper {
-	position: relative;
 	margin-bottom: 8px;
 }
 
@@ -107,23 +106,19 @@
 	margin-bottom: 0;
 }
 
-.kanban-search-dropdown {
-	display: none; /* 기본 숨김 — is-open 클래스로 표시 */
-	position: absolute;
-	top: calc(100% + 2px);
-	left: 0;
-	right: 0;
+/* 포탈: document.body에 직접 붙는 드롭다운 (overflow 우회) */
+.kanban-search-dropdown-portal {
+	position: fixed;
+	top: var(--portal-top);
+	left: var(--portal-left);
+	width: var(--portal-width);
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	max-height: 200px;
 	overflow-y: auto;
-	z-index: 200;
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-}
-
-.kanban-search-dropdown.is-open {
-	display: block;
+	z-index: 9999;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .kanban-search-item {

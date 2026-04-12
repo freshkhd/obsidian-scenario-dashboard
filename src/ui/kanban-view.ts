@@ -39,6 +39,8 @@ export class KanbanView extends ItemView {
 	private editingColId:  ColumnId | null = null;
 	/** 참고자료 패널 제목 인라인 편집 중 여부 */
 	private editingRefTitle = false;
+	/** 현재 열려있는 검색 드롭다운 (body에 포탈) */
+	private activeDropdown: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ScenarioPlugin) {
 		super(leaf);
@@ -50,7 +52,7 @@ export class KanbanView extends ItemView {
 	getIcon()        { return 'layout-dashboard'; }
 
 	async onOpen()  { this.renderBoard(); }
-	async onClose() { this.contentEl.empty(); }
+	async onClose() { this.destroyDropdown(); this.contentEl.empty(); }
 	refresh()       { this.renderBoard(); }
 
 	// ═══════════════════════════════════════════════════════════════════
@@ -58,6 +60,7 @@ export class KanbanView extends ItemView {
 	// ═══════════════════════════════════════════════════════════════════
 
 	private renderBoard(): void {
+		this.destroyDropdown();
 		// activeTabId 유효성 보정
 		const tabs = this.plugin.settings.reference.customTabs;
 		if (!tabs.some(t => t.id === this.activeTabId)) {
@@ -558,10 +561,18 @@ export class KanbanView extends ItemView {
 			.forEach(el => el.classList.remove('ref-tab-drag-before', 'ref-tab-drag-after'));
 	}
 
+	/** body에 붙어있는 검색 드롭다운 제거 */
+	private destroyDropdown(): void {
+		if (this.activeDropdown) {
+			this.activeDropdown.remove();
+			this.activeDropdown = null;
+		}
+	}
+
 	/**
 	 * 볼트 노트 검색 입력창 + 드롭다운을 렌더링한다.
-	 * 타이핑하면 볼트 내 마크다운 파일 실시간 검색, 선택 시 onSelect 콜백 호출.
-	 * ↑↓ 키로 항목 이동, Enter로 선택, Escape로 닫기.
+	 * 드롭다운은 document.body에 fixed position으로 붙여서
+	 * 부모 컨테이너의 overflow 제한을 완전히 우회한다.
 	 */
 	private renderSearchInput(
 		parent: HTMLElement,
@@ -571,15 +582,15 @@ export class KanbanView extends ItemView {
 		const wrapperEl = parent.createDiv({cls: 'kanban-search-wrapper'});
 		const inputEl = wrapperEl.createEl('input', {
 			cls: 'kanban-input kanban-search-input',
-			attr: {type: 'text', placeholder},
+			attr: {type: 'text', placeholder: `🔍 ${placeholder}`},
 		});
-		// 드롭다운은 기본 숨김(CSS), 'is-open' 클래스로 토글
-		const dropdownEl = wrapperEl.createDiv({cls: 'kanban-search-dropdown'});
 
 		let selectedIdx = -1;
 
-		const hideDropdown = () => { dropdownEl.removeClass('is-open'); selectedIdx = -1; };
-		const showDropdown = () => { dropdownEl.addClass('is-open'); };
+		const hideDropdown = () => {
+			this.destroyDropdown();
+			selectedIdx = -1;
+		};
 
 		const doSelect = (title: string) => {
 			inputEl.value = '';
@@ -587,8 +598,33 @@ export class KanbanView extends ItemView {
 			void onSelect(title);
 		};
 
+		const showDropdown = (results: {basename: string}[]) => {
+			hideDropdown();
+			const dd = document.createElement('div');
+			dd.className = 'kanban-search-dropdown-portal';
+
+			// input 위치 기준으로 fixed position 계산
+			const rect = inputEl.getBoundingClientRect();
+			dd.style.setProperty('--portal-top', `${rect.bottom + 2}px`);
+			dd.style.setProperty('--portal-left', `${rect.left}px`);
+			dd.style.setProperty('--portal-width', `${rect.width}px`);
+
+			for (const file of results) {
+				const itemEl = document.createElement('div');
+				itemEl.className = 'kanban-search-item';
+				itemEl.textContent = file.basename;
+				itemEl.addEventListener('mousedown', (e: MouseEvent) => {
+					e.preventDefault();
+					doSelect(file.basename);
+				});
+				dd.appendChild(itemEl);
+			}
+
+			document.body.appendChild(dd);
+			this.activeDropdown = dd;
+		};
+
 		const updateDropdown = (query: string) => {
-			dropdownEl.empty();
 			selectedIdx = -1;
 			if (!query) { hideDropdown(); return; }
 
@@ -597,15 +633,7 @@ export class KanbanView extends ItemView {
 				.slice(0, 10);
 
 			if (results.length === 0) { hideDropdown(); return; }
-
-			for (const file of results) {
-				const itemEl = dropdownEl.createDiv({cls: 'kanban-search-item', text: file.basename});
-				itemEl.addEventListener('mousedown', (e: MouseEvent) => {
-					e.preventDefault(); // blur 이전에 처리되도록
-					doSelect(file.basename);
-				});
-			}
-			showDropdown();
+			showDropdown(results);
 		};
 
 		inputEl.addEventListener('input', () => {
@@ -613,7 +641,16 @@ export class KanbanView extends ItemView {
 		});
 
 		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
-			const items = dropdownEl.querySelectorAll<HTMLElement>('.kanban-search-item');
+			const dd = this.activeDropdown;
+			if (!dd) {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					const raw = inputEl.value.trim().replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
+					if (raw) doSelect(raw);
+				}
+				return;
+			}
+			const items = dd.querySelectorAll<HTMLElement>('.kanban-search-item');
 			if (e.key === 'ArrowDown') {
 				e.preventDefault();
 				selectedIdx = Math.min(selectedIdx + 1, items.length - 1);
@@ -624,8 +661,8 @@ export class KanbanView extends ItemView {
 				items.forEach((el, i) => el.classList.toggle('kanban-search-item-selected', i === selectedIdx));
 			} else if (e.key === 'Enter') {
 				e.preventDefault();
-				const activeItem = items[selectedIdx];
-				if (selectedIdx >= 0 && activeItem) {
+				const activeItem = selectedIdx >= 0 ? items[selectedIdx] : null;
+				if (activeItem) {
 					doSelect(activeItem.textContent ?? '');
 				} else {
 					const raw = inputEl.value.trim().replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
