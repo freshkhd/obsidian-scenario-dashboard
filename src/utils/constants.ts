@@ -1,4 +1,4 @@
-import {ColumnDef, ColumnId, DashboardViewKind, GanttData, GanttPhase, KanbanData, ReferenceData, ReferenceTab} from '../types';
+import {CharacterData, CharacterRole, ColumnDef, ColumnId, DashboardViewKind, GanttData, GanttPhase, KanbanData, ReferenceData, ReferenceTab} from '../types';
 
 export const VIEW_TYPE_KANBAN = 'scenario-kanban-dashboard';
 
@@ -71,3 +71,17 @@ export const GANTT_SCALE_PX: Record<'daily' | 'weekly' | 'monthly', number> = {
 export const DEFAULT_GANTT_SCALE: 'daily' | 'weekly' | 'monthly' = 'weekly';
 
 export const DEFAULT_LAST_VIEW: DashboardViewKind = 'story';
+
+// ── Character 뷰 ──────────────────────────────────────────────────────────
+
+export const CHARACTER_ROLE_DEFS: Array<{id: CharacterRole; label: string}> = [
+	{id: 'protagonist', label: 'Protagonist'},
+	{id: 'mentor',      label: 'Mentor'},
+	{id: 'rival',       label: 'Rival'},
+	{id: 'supporting',  label: 'Supporting'},
+];
+
+export const DEFAULT_CHARACTER_DATA: CharacterData = {
+	projects:        [],
+	activeProjectId: '',
+};

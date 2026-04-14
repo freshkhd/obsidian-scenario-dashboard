@@ -1,7 +1,7 @@
 import {App, ItemView, Modal, Notice, WorkspaceLeaf} from 'obsidian';
 import type ScenarioPlugin from '../main';
-import {ColumnDef, ColumnId, DashboardViewKind, GanttPhase, GanttTask, GanttTaskStatus, KanbanItem, ReferenceTab} from '../types';
-import {COLUMN_DEFS, DEFAULT_GANTT_PHASES, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE, GANTT_SCALE_PX, VIEW_TYPE_KANBAN} from '../utils/constants';
+import {CharacterEntry, CharacterNode, CharacterProject, CharacterRole, ColumnDef, ColumnId, DashboardViewKind, GanttPhase, GanttTask, GanttTaskStatus, KanbanItem, ReferenceTab} from '../types';
+import {CHARACTER_ROLE_DEFS, COLUMN_DEFS, DEFAULT_GANTT_PHASES, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE, GANTT_SCALE_PX, VIEW_TYPE_KANBAN} from '../utils/constants';
 
 // ── 드래그 페이로드 ───────────────────────────────────────────────────
 
@@ -19,6 +19,12 @@ interface ReferenceDragPayload {
 const DRAG_TYPE_KANBAN    = 'application/x-kanban-item';
 const DRAG_TYPE_REFERENCE = 'application/x-reference-item';
 const DRAG_TYPE_REF_TAB   = 'application/x-reference-tab';
+const DRAG_TYPE_CHARACTER = 'application/x-character-entry';
+
+interface CharacterDragPayload {
+	projectId: string;
+	characterId: string;
+}
 
 // ── ID 생성 유틸 ──────────────────────────────────────────────────────
 
@@ -98,13 +104,19 @@ export class DashboardView extends ItemView {
 	private ganttEditingPhaseId: string | null = null;
 	private ganttNewTaskPhaseId: string | null = null;
 
+	// ── Character 뷰 로컬 상태 ────────────────────────────────────────
+	private editingProjectId:    string | null = null;
+	private editingCharacterId:  string | null = null;
+	private selectedCharacterId: string | null = null;
+	private _charSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
 	constructor(leaf: WorkspaceLeaf, plugin: ScenarioPlugin) {
 		super(leaf);
 		this.plugin = plugin;
 	}
 
 	getViewType()    { return VIEW_TYPE_KANBAN; }
-	getDisplayText() { return '시나리오 대시보드'; }
+	getDisplayText() { return 'Animation Project Dashboard'; }
 	getIcon()        { return 'layout-dashboard'; }
 
 	async onOpen()  { this.renderBoard(); }
@@ -129,11 +141,9 @@ export class DashboardView extends ItemView {
 
 		const body = root.createDiv({cls: 'dashboard-body'});
 		const view = this.plugin.settings.lastActiveView;
-		if (view === 'gantt') {
-			this.renderGanttBody(body);
-		} else {
-			this.renderStoryBody(body);
-		}
+		if (view === 'gantt')          this.renderGanttBody(body);
+		else if (view === 'character') this.renderCharacterBody(body);
+		else                           this.renderStoryBody(body);
 	}
 
 	// ── 좌측 네비게이션 ───────────────────────────────────────────────
@@ -144,15 +154,16 @@ export class DashboardView extends ItemView {
 		const header = nav.createDiv({cls: 'dashboard-nav-header'});
 		header.createDiv({cls: 'dashboard-nav-logo', text: '🎬'});
 		const hText = header.createDiv({cls: 'dashboard-nav-header-text'});
-		hText.createDiv({cls: 'dashboard-nav-title', text: 'Scenario'});
+		hText.createDiv({cls: 'dashboard-nav-title', text: 'Animation Project'});
 		hText.createDiv({cls: 'dashboard-nav-subtitle', text: 'Dashboard'});
 
 		const items = nav.createDiv({cls: 'dashboard-nav-items'});
 		const current = this.plugin.settings.lastActiveView;
 
 		const navItems: Array<{id: DashboardViewKind; icon: string; label: string}> = [
-			{id: 'story', icon: '📖', label: 'Story'},
-			{id: 'gantt', icon: '📊', label: 'Timeline/Gantt'},
+			{id: 'story',     icon: '📖', label: 'Story'},
+			{id: 'gantt',     icon: '📊', label: 'Timeline/Gantt'},
+			{id: 'character', icon: '👤', label: 'Character'},
 		];
 
 		for (const ni of navItems) {
@@ -651,6 +662,470 @@ export class DashboardView extends ItemView {
 	}
 
 	// ═══════════════════════════════════════════════════════════════════
+	// Character 뷰
+	// ═══════════════════════════════════════════════════════════════════
+
+	private renderCharacterBody(body: HTMLElement): void {
+		const wrapper = body.createDiv({cls: 'character-wrapper'});
+
+		const char = this.plugin.settings.character;
+		const projects = char.projects;
+
+		// activeProjectId 유효성 보정
+		if (char.activeProjectId && !projects.some(p => p.id === char.activeProjectId)) {
+			char.activeProjectId = projects[0]?.id ?? '';
+		}
+
+		const activeProject = projects.find(p => p.id === char.activeProjectId) ?? null;
+
+		this.renderCharacterProjectPanel(wrapper);
+
+		if (activeProject) {
+			this.renderCharacterCanvas(wrapper, activeProject);
+			this.renderCharacterDetailPanel(wrapper, activeProject);
+		} else {
+			// 빈 캔버스 영역 (canvas-wrapper 안에 넣어야 좌측 패널을 덮지 않음)
+			const emptyCanvasWrapper = wrapper.createDiv({cls: 'character-canvas-wrapper'});
+			const emptyCenter = emptyCanvasWrapper.createDiv({cls: 'character-empty-center'});
+			emptyCenter.createDiv({cls: 'character-empty-icon', text: '👤'});
+			emptyCenter.createDiv({cls: 'character-empty-title', text: 'No project selected'});
+			emptyCenter.createDiv({cls: 'character-empty-desc', text: 'Create a project in the left panel to get started.'});
+		}
+	}
+
+	// ── 왼쪽: 프로젝트 패널 ───────────────────────────────────────────
+
+	private renderCharacterProjectPanel(wrapper: HTMLElement): void {
+		const panel = wrapper.createDiv({cls: 'character-project-panel'});
+		panel.createDiv({cls: 'character-panel-section-label', text: 'Projects'});
+
+		const char = this.plugin.settings.character;
+		const projects = char.projects;
+
+		for (const project of projects) {
+			if (this.editingProjectId === project.id) {
+				const editRow = panel.createDiv({cls: 'character-project-edit-row'});
+				const input = editRow.createEl('input', {
+					cls: 'character-project-edit-input',
+					attr: {type: 'text', value: project.name},
+				});
+				const save = async () => {
+					project.name = input.value.trim() || project.name;
+					this.editingProjectId = null;
+					await this.plugin.saveSettings();
+					this.renderBoard();
+				};
+				input.addEventListener('keydown', (e: KeyboardEvent) => {
+					if (e.key === 'Enter') void save();
+					if (e.key === 'Escape') { this.editingProjectId = null; this.renderBoard(); }
+				});
+				input.addEventListener('blur', () => void save());
+				setTimeout(() => input.select(), 0);
+			} else {
+				const itemEl = panel.createDiv({
+					cls: project.id === char.activeProjectId
+						? 'character-project-item character-project-item-active'
+						: 'character-project-item',
+				});
+				itemEl.createSpan({text: project.name, cls: 'character-project-item-name'});
+
+				const deleteBtn = itemEl.createSpan({text: '×', cls: 'character-project-item-delete'});
+				deleteBtn.addEventListener('click', (e: MouseEvent) => {
+					e.stopPropagation();
+					new ConfirmDeleteProjectModal(this.app, project.name, () => {
+						const idx = projects.findIndex(p => p.id === project.id);
+						if (idx !== -1) projects.splice(idx, 1);
+						if (char.activeProjectId === project.id) {
+							char.activeProjectId = projects[0]?.id ?? '';
+						}
+						void this.plugin.saveSettings();
+						this.renderBoard();
+					}).open();
+				});
+
+				itemEl.addEventListener('click', () => {
+					char.activeProjectId = project.id;
+					void this.plugin.saveSettings();
+					this.renderBoard();
+				});
+				itemEl.addEventListener('dblclick', (e: MouseEvent) => {
+					e.stopPropagation();
+					this.editingProjectId = project.id;
+					this.renderBoard();
+				});
+			}
+		}
+
+		const addBtn = panel.createDiv({cls: 'character-project-add-btn'});
+		addBtn.createSpan({text: '+ New Project'});
+		addBtn.addEventListener('click', () => {
+			const newProject: CharacterProject = {
+				id: generateId(),
+				name: 'New Project',
+				characters: [],
+				nodes: [],
+			};
+			projects.push(newProject);
+			char.activeProjectId = newProject.id;
+			this.editingProjectId = newProject.id;
+			void this.plugin.saveSettings();
+			this.renderBoard();
+		});
+	}
+
+	// ── 중앙: 캔버스 ──────────────────────────────────────────────────
+
+	private renderCharacterCanvas(wrapper: HTMLElement, project: CharacterProject): void {
+		const canvasWrapper = wrapper.createDiv({cls: 'character-canvas-wrapper'});
+		const canvas = canvasWrapper.createDiv({cls: 'character-canvas'});
+
+		// 파일 탐색기 + 오른쪽 패널 드롭 수락
+		canvas.addEventListener('dragover', (e: DragEvent) => {
+			e.preventDefault();
+			canvas.addClass('character-canvas-dragover');
+		});
+		canvas.addEventListener('dragleave', (e: DragEvent) => {
+			if (!canvas.contains(e.relatedTarget as Node))
+				canvas.removeClass('character-canvas-dragover');
+		});
+		canvas.addEventListener('drop', (e: DragEvent) => {
+			e.preventDefault();
+			canvas.removeClass('character-canvas-dragover');
+			const dt = e.dataTransfer;
+			if (!dt) return;
+
+			const rect = canvas.getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			// 1. 오른쪽 패널 캐릭터 드래그
+			const charRaw = dt.getData(DRAG_TYPE_CHARACTER);
+			if (charRaw) {
+				const payload = JSON.parse(charRaw) as CharacterDragPayload;
+				if (payload.projectId === project.id) {
+					this.placeCharacterNode(project, payload.characterId, x, y);
+				}
+				return;
+			}
+
+			// 2. 파일 탐색기 드래그 → 캐릭터 등록 + 노드 동시 생성
+			const titles = this.extractNoteTitlesFromDrop(e);
+			let offset = 0;
+			for (const title of titles) {
+				let entry = project.characters.find(c => c.noteTitle === title);
+				if (!entry) {
+					entry = {id: generateId(), noteTitle: title, role: 'supporting', addedAt: Date.now()};
+					project.characters.push(entry);
+				}
+				this.placeCharacterNode(project, entry.id, x + offset, y + offset);
+				offset += 24;
+			}
+		});
+
+		// 배경 클릭 → 선택 해제
+		canvas.addEventListener('click', (e: MouseEvent) => {
+			if (e.target === canvas) {
+				this.selectedCharacterId = null;
+				this.renderBoard();
+			}
+		});
+
+		// 노드 렌더
+		for (const node of project.nodes) {
+			const char = project.characters.find(c => c.id === node.characterId);
+			if (!char) continue;
+			this.renderCharacterNode(canvas, project, node, char);
+		}
+	}
+
+	private renderCharacterNode(
+		canvas: HTMLElement,
+		project: CharacterProject,
+		node: CharacterNode,
+		character: CharacterEntry,
+	): void {
+		const nodeEl = canvas.createDiv({
+			cls: this.selectedCharacterId === character.id
+				? 'character-node character-node-selected'
+				: 'character-node',
+		});
+		nodeEl.style.left = `${node.x}px`;
+		nodeEl.style.top  = `${node.y}px`;
+
+		// 역할 표시
+		const roleDef = CHARACTER_ROLE_DEFS.find(r => r.id === character.role) ?? CHARACTER_ROLE_DEFS[3]!;
+		const header = nodeEl.createDiv({cls: 'character-node-header'});
+		header.createSpan({text: character.noteTitle, cls: 'character-node-name'});
+		header.createSpan({
+			text: roleDef.label,
+			cls: `character-node-role character-node-role-${character.role}`,
+		});
+
+		// 삭제 버튼
+		const deleteBtn = nodeEl.createSpan({text: '×', cls: 'character-node-delete'});
+		deleteBtn.addEventListener('click', (e: MouseEvent) => {
+			e.stopPropagation();
+			const idx = project.nodes.findIndex(n => n.characterId === character.id);
+			if (idx !== -1) project.nodes.splice(idx, 1);
+			if (this.selectedCharacterId === character.id) this.selectedCharacterId = null;
+			void this.plugin.saveSettings();
+			this.renderBoard();
+		});
+
+		// 클릭 → 선택
+		nodeEl.addEventListener('click', (e: MouseEvent) => {
+			e.stopPropagation();
+			this.selectedCharacterId = this.selectedCharacterId === character.id ? null : character.id;
+			this.renderBoard();
+		});
+
+		// 더블클릭 → 노트 열기
+		nodeEl.addEventListener('dblclick', (e: MouseEvent) => {
+			e.stopPropagation();
+			void this.app.workspace.openLinkText(character.noteTitle, '', false);
+		});
+
+		// 포인터 드래그 재배치
+		let dragging = false;
+		let startPx = 0, startPy = 0;
+		let startNx = 0, startNy = 0;
+
+		nodeEl.addEventListener('pointerdown', (e: PointerEvent) => {
+			if ((e.target as HTMLElement).classList.contains('character-node-delete')) return;
+			e.preventDefault();
+			e.stopPropagation();
+			dragging = true;
+			startPx = e.clientX;
+			startPy = e.clientY;
+			startNx = node.x;
+			startNy = node.y;
+			nodeEl.setPointerCapture(e.pointerId);
+			nodeEl.addClass('character-node-dragging');
+		});
+
+		nodeEl.addEventListener('pointermove', (e: PointerEvent) => {
+			if (!dragging) return;
+			nodeEl.style.left = `${Math.max(0, startNx + (e.clientX - startPx))}px`;
+			nodeEl.style.top  = `${Math.max(0, startNy + (e.clientY - startPy))}px`;
+		});
+
+		const endDrag = (e: PointerEvent) => {
+			if (!dragging) return;
+			dragging = false;
+			nodeEl.removeClass('character-node-dragging');
+			node.x = Math.max(0, startNx + (e.clientX - startPx));
+			node.y = Math.max(0, startNy + (e.clientY - startPy));
+			this.saveCharacterDebounced();
+		};
+		nodeEl.addEventListener('pointerup',     endDrag);
+		nodeEl.addEventListener('pointercancel', endDrag);
+	}
+
+	// ── 오른쪽: 캐릭터 디테일 패널 ───────────────────────────────────
+
+	private renderCharacterDetailPanel(wrapper: HTMLElement, project: CharacterProject): void {
+		const panel = wrapper.createDiv({cls: 'character-detail-panel'});
+
+		// 헤더
+		const header = panel.createDiv({cls: 'character-detail-header'});
+		const titleRow = header.createDiv({cls: 'character-detail-title-row'});
+		titleRow.createEl('h3', {text: 'Characters', cls: 'character-detail-title'});
+		titleRow.createSpan({
+			text: String(project.characters.length),
+			cls: 'character-detail-count-pill',
+		});
+
+		// 텍스트 입력
+		const inputEl = header.createEl('input', {
+			cls: 'character-detail-input',
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			attr: {type: 'text', placeholder: '[[Note Title]] or plain text + Enter'},
+		});
+		inputEl.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key !== 'Enter') return;
+			const raw = inputEl.value.trim();
+			if (!raw) return;
+			const title = raw.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
+			if (!title) return;
+			void this.addCharacterToProject(project, title);
+			inputEl.value = '';
+		});
+
+		// 리스트 (파일 탐색기 드롭 허용)
+		const list = panel.createDiv({cls: 'character-detail-list'});
+		list.addEventListener('dragover', (e: DragEvent) => {
+			e.preventDefault();
+			list.addClass('character-detail-list-dragover');
+		});
+		list.addEventListener('dragleave', (e: DragEvent) => {
+			if (!list.contains(e.relatedTarget as Node))
+				list.removeClass('character-detail-list-dragover');
+		});
+		list.addEventListener('drop', (e: DragEvent) => {
+			void (async () => {
+				e.preventDefault();
+				list.removeClass('character-detail-list-dragover');
+				for (const title of this.extractNoteTitlesFromDrop(e)) {
+					await this.addCharacterToProject(project, title);
+				}
+			})();
+		});
+
+		for (const character of project.characters) {
+			this.renderCharacterRow(list, project, character);
+		}
+
+		if (project.characters.length === 0) {
+			list.createDiv({cls: 'character-detail-empty', text: 'Drop notes here or type a name above.'});
+		}
+	}
+
+	private renderCharacterRow(
+		list: HTMLElement,
+		project: CharacterProject,
+		character: CharacterEntry,
+	): void {
+		const isSelected = this.selectedCharacterId === character.id;
+		const rowEl = list.createDiv({
+			cls: isSelected
+				? 'character-detail-row character-detail-row-selected'
+				: 'character-detail-row',
+		});
+
+		// 캔버스로 드래그 출발
+		rowEl.setAttribute('draggable', 'true');
+		rowEl.addEventListener('dragstart', (e: DragEvent) => {
+			e.dataTransfer?.setData(
+				DRAG_TYPE_CHARACTER,
+				JSON.stringify({projectId: project.id, characterId: character.id} as CharacterDragPayload),
+			);
+			if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+			setTimeout(() => rowEl.addClass('character-detail-row-dragging'), 0);
+		});
+		rowEl.addEventListener('dragend', () => rowEl.removeClass('character-detail-row-dragging'));
+
+		// 클릭 → 선택 동기화
+		rowEl.addEventListener('click', () => {
+			this.selectedCharacterId = isSelected ? null : character.id;
+			this.renderBoard();
+		});
+
+		const roleDef = CHARACTER_ROLE_DEFS.find(r => r.id === character.role) ?? CHARACTER_ROLE_DEFS[3]!;
+
+		if (this.editingCharacterId === character.id) {
+			// 인라인 편집 폼
+			const editRow = rowEl.createDiv({cls: 'character-detail-edit-row'});
+
+			const nameInput = editRow.createEl('input', {
+				cls: 'character-detail-name-input',
+				attr: {type: 'text', value: character.noteTitle},
+			});
+
+			const roleSelect = editRow.createEl('select', {cls: 'character-detail-role-select'});
+			for (const rd of CHARACTER_ROLE_DEFS) {
+				const opt = roleSelect.createEl('option', {text: rd.label, attr: {value: rd.id}});
+				if (rd.id === character.role) opt.selected = true;
+			}
+
+			const save = async () => {
+				const newTitle = nameInput.value.trim();
+				if (newTitle) character.noteTitle = newTitle;
+				character.role = roleSelect.value as CharacterRole;
+				this.editingCharacterId = null;
+				await this.plugin.saveSettings();
+				this.renderBoard();
+			};
+
+			nameInput.addEventListener('keydown', (e: KeyboardEvent) => {
+				if (e.key === 'Enter') void save();
+				if (e.key === 'Escape') { this.editingCharacterId = null; this.renderBoard(); }
+			});
+			// blur는 role select 클릭 시 오발사를 막기 위해 지연 처리
+			nameInput.addEventListener('blur', () => {
+				setTimeout(() => { if (this.editingCharacterId === character.id) void save(); }, 150);
+			});
+
+			const saveBtn = editRow.createSpan({text: '✓', cls: 'character-detail-save-btn'});
+			saveBtn.addEventListener('click', (e: MouseEvent) => { e.stopPropagation(); void save(); });
+
+			setTimeout(() => nameInput.select(), 0);
+		} else {
+			const infoEl = rowEl.createDiv({cls: 'character-detail-row-info'});
+			const linkEl = infoEl.createEl('a', {text: character.noteTitle, cls: 'character-detail-name'});
+			linkEl.addEventListener('click', (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopPropagation();
+				void this.app.workspace.openLinkText(character.noteTitle, '', false);
+			});
+			linkEl.addEventListener('mouseover', (e: MouseEvent) => {
+				this.app.workspace.trigger('hover-link', {
+					event: e, source: VIEW_TYPE_KANBAN, hoverParent: this,
+					targetEl: linkEl, linktext: character.noteTitle, sourcePath: '',
+				});
+			});
+
+			rowEl.createSpan({
+				text: roleDef.label,
+				cls: `character-detail-role-pill character-detail-role-pill-${character.role}`,
+			});
+
+			rowEl.addEventListener('dblclick', (e: MouseEvent) => {
+				e.stopPropagation();
+				this.editingCharacterId = character.id;
+				this.renderBoard();
+			});
+
+			const deleteBtn = rowEl.createSpan({text: '×', cls: 'character-detail-delete-btn'});
+			deleteBtn.addEventListener('click', (e: MouseEvent) => {
+				e.stopPropagation();
+				void this.removeCharacterFromProject(project, character.id);
+			});
+		}
+	}
+
+	// ── Character 데이터 조작 ─────────────────────────────────────────
+
+	private placeCharacterNode(project: CharacterProject, characterId: string, x: number, y: number): void {
+		const existing = project.nodes.find(n => n.characterId === characterId);
+		if (existing) {
+			existing.x = Math.max(0, x);
+			existing.y = Math.max(0, y);
+		} else {
+			project.nodes.push({characterId, x: Math.max(0, x), y: Math.max(0, y)});
+		}
+		void this.plugin.saveSettings();
+		this.renderBoard();
+	}
+
+	private async addCharacterToProject(project: CharacterProject, noteTitle: string): Promise<void> {
+		if (project.characters.some(c => c.noteTitle === noteTitle)) {
+			new Notice(`"${noteTitle}"은(는) 이미 등록되어 있습니다.`);
+			return;
+		}
+		project.characters.push({id: generateId(), noteTitle, role: 'supporting', addedAt: Date.now()});
+		await this.plugin.saveSettings();
+		this.renderBoard();
+	}
+
+	private async removeCharacterFromProject(project: CharacterProject, characterId: string): Promise<void> {
+		const idx = project.characters.findIndex(c => c.id === characterId);
+		if (idx !== -1) project.characters.splice(idx, 1);
+		project.nodes = project.nodes.filter(n => n.characterId !== characterId);
+		if (this.selectedCharacterId === characterId) this.selectedCharacterId = null;
+		await this.plugin.saveSettings();
+		this.renderBoard();
+	}
+
+	/** 노드 드래그 중 빈번한 저장 방지용 디바운스 저장 (300ms) */
+	private saveCharacterDebounced(): void {
+		if (this._charSaveTimer !== null) clearTimeout(this._charSaveTimer);
+		this._charSaveTimer = setTimeout(() => {
+			this._charSaveTimer = null;
+			void this.plugin.saveSettings();
+		}, 300);
+	}
+
+	// ═══════════════════════════════════════════════════════════════════
 	// 간트 뷰
 	// ═══════════════════════════════════════════════════════════════════
 
@@ -809,35 +1284,36 @@ export class DashboardView extends ItemView {
 	): void {
 		const isEditing = this.ganttEditingTaskId === task.id;
 
-		// 사이드바 행
-		const sideRow = sidebar.createDiv({cls: 'gantt-task-name-row'});
+		// 편집 중: gantt-task-name-row(height:34px) 대신 form-row 컨테이너 사용
 		if (isEditing) {
-			this.renderGanttEditTaskForm(sideRow, barsArea, phase, task, range, pxPerDay);
-		} else {
-			sideRow.createSpan({text: task.title, cls: 'gantt-task-name-label'});
-			const pct = sideRow.createSpan({text: `${task.progress}%`, cls: 'gantt-task-pct'});
-			pct.style.opacity = task.progress > 0 ? '1' : '0';
-			sideRow.addEventListener('mouseenter', () => { pct.style.opacity = '1'; });
-			sideRow.addEventListener('mouseleave', () => { pct.style.opacity = task.progress > 0 ? '1' : '0'; });
-
-			const deleteBtn = sideRow.createSpan({text: '×', cls: 'gantt-task-delete-btn'});
-			deleteBtn.addEventListener('click', (e: MouseEvent) => {
-				e.stopPropagation();
-				void this.removeGanttTask(phase.id, task.id);
-			});
-
-			sideRow.addEventListener('dblclick', () => {
-				this.ganttEditingTaskId  = task.id;
-				this.ganttNewTaskPhaseId = null;
-				this.renderBoard();
-			});
+			const formRow = sidebar.createDiv({cls: 'gantt-task-form-row'});
+			this.renderGanttEditTaskForm(formRow, barsArea, phase, task, range, pxPerDay);
+			return;
 		}
+
+		// 일반 사이드바 행
+		const sideRow = sidebar.createDiv({cls: 'gantt-task-name-row'});
+		sideRow.createSpan({text: task.title, cls: 'gantt-task-name-label'});
+		const pct = sideRow.createSpan({text: `${task.progress}%`, cls: 'gantt-task-pct'});
+		pct.style.opacity = task.progress > 0 ? '1' : '0';
+		sideRow.addEventListener('mouseenter', () => { pct.style.opacity = '1'; });
+		sideRow.addEventListener('mouseleave', () => { pct.style.opacity = task.progress > 0 ? '1' : '0'; });
+
+		const deleteBtn = sideRow.createSpan({text: '×', cls: 'gantt-task-delete-btn'});
+		deleteBtn.addEventListener('click', (e: MouseEvent) => {
+			e.stopPropagation();
+			void this.removeGanttTask(phase.id, task.id);
+		});
+
+		sideRow.addEventListener('dblclick', () => {
+			this.ganttEditingTaskId  = task.id;
+			this.ganttNewTaskPhaseId = null;
+			this.renderBoard();
+		});
 
 		// 타임라인 바 행
 		const barRow = barsArea.createDiv({cls: 'gantt-bar-row'});
 		barRow.style.height = '34px';
-
-		if (isEditing) return; // 편집 중엔 바 숨김
 
 		const leftPx  = Math.max(0, diffDays(range.start, task.startDate)) * pxPerDay;
 		const spanDays = Math.max(1, diffDays(task.startDate, task.endDate) + 1);
@@ -1310,6 +1786,43 @@ class ConfirmDeleteTabModal extends Modal {
 		contentEl.createEl('h3', {text: '탭 삭제', cls: 'confirm-modal-title'});
 		contentEl.createEl('p', {
 			text: `"📁 ${this.tabName}" 탭과 탭 안의 모든 노트 목록을 삭제합니다.`,
+			cls: 'confirm-modal-desc',
+		});
+
+		const btnRow = contentEl.createDiv({cls: 'confirm-modal-btns'});
+
+		const deleteBtn = btnRow.createEl('button', {text: '삭제', cls: 'mod-warning'});
+		deleteBtn.addEventListener('click', () => {
+			this.close();
+			this.onConfirm();
+		});
+
+		const cancelBtn = btnRow.createEl('button', {text: '취소'});
+		cancelBtn.addEventListener('click', () => this.close());
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
+
+class ConfirmDeleteProjectModal extends Modal {
+	private projectName: string;
+	private onConfirm: () => void;
+
+	constructor(app: App, projectName: string, onConfirm: () => void) {
+		super(app);
+		this.projectName = projectName;
+		this.onConfirm   = onConfirm;
+	}
+
+	onOpen() {
+		const {contentEl} = this;
+		contentEl.addClass('confirm-delete-tab-modal');
+
+		contentEl.createEl('h3', {text: '프로젝트 삭제', cls: 'confirm-modal-title'});
+		contentEl.createEl('p', {
+			text: `"${this.projectName}" 프로젝트와 모든 캐릭터 데이터를 삭제합니다.`,
 			cls: 'confirm-modal-desc',
 		});
 

@@ -2,7 +2,7 @@ import {Plugin, TFile} from 'obsidian';
 import {DEFAULT_SETTINGS, ScenarioPluginSettings} from './settings';
 import {DashboardView} from './ui/dashboard-view';
 import {ScenarioSettingTab} from './ui/settings-tab';
-import {COLUMN_DEFS, DEFAULT_COLUMN_NAMES, DEFAULT_GANTT_DATA, DEFAULT_GANTT_PHASES, DEFAULT_GANTT_SCALE, DEFAULT_KANBAN_DATA, DEFAULT_LAST_VIEW, DEFAULT_REFERENCE_DATA, DEFAULT_REFERENCE_TABS, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from './utils/constants';
+import {COLUMN_DEFS, DEFAULT_CHARACTER_DATA, DEFAULT_COLUMN_NAMES, DEFAULT_GANTT_DATA, DEFAULT_GANTT_PHASES, DEFAULT_GANTT_SCALE, DEFAULT_KANBAN_DATA, DEFAULT_LAST_VIEW, DEFAULT_REFERENCE_DATA, DEFAULT_REFERENCE_TABS, DEFAULT_REF_PANEL_EMOJI, DEFAULT_REF_PANEL_TITLE, VIEW_TYPE_KANBAN} from './utils/constants';
 import {ColumnId, KanbanItem} from './types';
 
 export default class ScenarioPlugin extends Plugin {
@@ -16,7 +16,7 @@ export default class ScenarioPlugin extends Plugin {
 			(leaf) => new DashboardView(leaf, this)
 		);
 
-		this.addRibbonIcon('layout-dashboard', '시나리오 대시보드 열기', () => {
+		this.addRibbonIcon('layout-dashboard', 'Animation Project Dashboard 열기', () => {
 			void this.activateView();
 		});
 
@@ -56,6 +56,16 @@ export default class ScenarioPlugin extends Plugin {
 				const items = this.settings.reference.items;
 				for (const tabId of Object.keys(items)) {
 					(items[tabId] ?? []).forEach(updateItem);
+				}
+
+				// Character 뷰
+				for (const proj of (this.settings.character?.projects ?? [])) {
+					for (const c of proj.characters) {
+						if (c.noteTitle === oldTitle) {
+							c.noteTitle = newTitle;
+							changed = true;
+						}
+					}
 				}
 
 				if (changed) {
@@ -176,6 +186,29 @@ export default class ScenarioPlugin extends Plugin {
 		}
 		if (!this.settings.lastActiveView) this.settings.lastActiveView = DEFAULT_LAST_VIEW;
 		if (!this.settings.ganttScale)     this.settings.ganttScale     = DEFAULT_GANTT_SCALE;
+
+		// ── Character 초기화 ────────────────────────────────────────────
+		if (!this.settings.character) {
+			this.settings.character = {projects: [], activeProjectId: ''};
+		}
+		if (!Array.isArray(this.settings.character.projects)) {
+			this.settings.character.projects = [];
+		}
+		for (const proj of this.settings.character.projects) {
+			if (!Array.isArray(proj.characters)) proj.characters = [];
+			if (!Array.isArray(proj.nodes))      proj.nodes      = [];
+		}
+		if (typeof this.settings.character.activeProjectId !== 'string') {
+			this.settings.character.activeProjectId = '';
+		}
+		const charProjectIds = this.settings.character.projects.map(p => p.id);
+		if (
+			this.settings.character.activeProjectId &&
+			!charProjectIds.includes(this.settings.character.activeProjectId)
+		) {
+			this.settings.character.activeProjectId = charProjectIds[0] ?? '';
+		}
+		void DEFAULT_CHARACTER_DATA; // 미사용 import 방지
 	}
 
 	async saveSettings() {

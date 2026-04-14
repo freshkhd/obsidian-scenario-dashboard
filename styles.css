@@ -959,6 +959,10 @@
 
 /* ── 태스크 폼 ──────────────────────────────────────────────────── */
 
+.gantt-task-form-row {
+	overflow: hidden;
+}
+
 .gantt-task-form {
 	padding: 8px 10px;
 	background-color: var(--background-primary);
@@ -968,6 +972,8 @@
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	box-sizing: border-box;
+	overflow: hidden;
 }
 
 .gantt-form-title {
@@ -987,19 +993,21 @@
 }
 
 .gantt-form-dates {
-	display: flex;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
 }
 
 .gantt-form-date {
-	flex: 1;
-	padding: 3px 5px;
+	min-width: 0;
+	width: 100%;
+	padding: 3px 4px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background-color: var(--background-secondary);
 	color: var(--text-normal);
-	font-size: 0.78em;
+	font-size: 0.75em;
 	box-sizing: border-box;
 }
 
@@ -1078,4 +1086,477 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	overflow: hidden;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Character 뷰
+   ═════════════════════════════════════════════════════════════════ */
+
+.character-wrapper {
+	display: flex;
+	flex: 1;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* ── 왼쪽: 프로젝트 패널 ──────────────────────────────────────── */
+
+.character-project-panel {
+	width: 220px;
+	flex-shrink: 0;
+	background: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 16px 10px;
+	overflow-y: auto;
+}
+
+.character-panel-section-label {
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-faint);
+	padding: 0 8px;
+	margin-top: 4px;
+	margin-bottom: 6px;
+}
+
+.character-project-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 7px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: background 0.12s ease, color 0.12s ease;
+}
+
+.character-project-item:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.character-project-item-active {
+	background: var(--background-secondary-alt);
+	color: var(--text-accent);
+	border-right: 2px solid var(--interactive-accent);
+}
+
+.character-project-item-name {
+	flex: 1;
+	font-size: 12px;
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.character-project-item-delete {
+	opacity: 0;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 14px;
+	line-height: 1;
+	padding: 0 2px;
+	transition: opacity 0.1s ease;
+	flex-shrink: 0;
+}
+
+.character-project-item:hover .character-project-item-delete {
+	opacity: 1;
+}
+
+.character-project-item-delete:hover {
+	color: var(--text-error);
+}
+
+.character-project-edit-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 2px;
+}
+
+.character-project-edit-input {
+	flex: 1;
+	background: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	border-radius: 4px;
+	padding: 4px 8px;
+	font-size: 12px;
+	color: var(--text-normal);
+	outline: none;
+	min-width: 0;
+}
+
+.character-project-add-btn {
+	display: flex;
+	align-items: center;
+	padding: 7px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-faint);
+	font-size: 11px;
+	font-weight: 600;
+	transition: background 0.12s ease, color 0.12s ease;
+	margin-top: 6px;
+}
+
+.character-project-add-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--interactive-accent);
+}
+
+/* ── 중앙: 캔버스 ─────────────────────────────────────────────── */
+
+.character-canvas-wrapper {
+	flex: 1;
+	position: relative;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+
+.character-canvas {
+	position: absolute;
+	inset: 0;
+	background-image: radial-gradient(circle, var(--background-modifier-border) 1px, transparent 1px);
+	background-size: 24px 24px;
+}
+
+.character-canvas-dragover {
+	background-color: color-mix(in srgb, var(--interactive-accent) 6%, transparent);
+	background-image: radial-gradient(circle, var(--background-modifier-border) 1px, transparent 1px);
+	background-size: 24px 24px;
+}
+
+.character-empty-center {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+}
+
+.character-empty-icon {
+	font-size: 48px;
+	opacity: 0.35;
+}
+
+.character-empty-title {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.character-empty-desc {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+/* 캐릭터 노드 */
+
+.character-node {
+	position: absolute;
+	width: 200px;
+	background: var(--background-secondary-alt);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 10px 12px;
+	cursor: grab;
+	user-select: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.character-node:hover {
+	border-color: color-mix(in srgb, var(--interactive-accent) 40%, transparent);
+}
+
+.character-node-selected {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent), 0 0 0 4px var(--background-primary);
+}
+
+.character-node-dragging {
+	cursor: grabbing;
+	opacity: 0.85;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+	z-index: 10;
+}
+
+.character-node-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 6px;
+}
+
+.character-node-name {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--text-normal);
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.character-node-role {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.character-node-role-protagonist { color: var(--interactive-accent); }
+.character-node-role-mentor      { color: var(--color-green); }
+.character-node-role-rival       { color: var(--text-error); }
+.character-node-role-supporting  { color: var(--color-orange); }
+
+.character-node-delete {
+	position: absolute;
+	top: 5px;
+	right: 8px;
+	opacity: 0;
+	cursor: pointer;
+	color: var(--text-faint);
+	font-size: 14px;
+	line-height: 1;
+	transition: opacity 0.1s ease;
+}
+
+.character-node:hover .character-node-delete {
+	opacity: 1;
+}
+
+.character-node-delete:hover {
+	color: var(--text-error);
+}
+
+/* ── 오른쪽: 디테일 패널 ──────────────────────────────────────── */
+
+.character-detail-panel {
+	width: 280px;
+	flex-shrink: 0;
+	background: var(--background-secondary);
+	border-left: 1px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.character-detail-header {
+	padding: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.character-detail-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.character-detail-title {
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--text-normal);
+	margin: 0;
+}
+
+.character-detail-count-pill {
+	font-size: 10px;
+	font-weight: 700;
+	background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+	color: var(--interactive-accent);
+	border-radius: 20px;
+	padding: 2px 8px;
+}
+
+.character-detail-input {
+	width: 100%;
+	background: var(--background-primary);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+	border-radius: 6px;
+	padding: 6px 10px;
+	font-size: 12px;
+	color: var(--text-normal);
+	box-sizing: border-box;
+}
+
+.character-detail-input:focus {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+	outline: none;
+}
+
+.character-detail-list {
+	flex: 1;
+	overflow-y: auto;
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.character-detail-list-dragover {
+	background: color-mix(in srgb, var(--interactive-accent) 5%, transparent);
+}
+
+.character-detail-empty {
+	font-size: 11px;
+	color: var(--text-faint);
+	text-align: center;
+	padding: 24px 12px;
+	line-height: 1.6;
+}
+
+.character-detail-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 7px 10px;
+	border-radius: 6px;
+	cursor: grab;
+	transition: background 0.1s ease;
+	gap: 6px;
+}
+
+.character-detail-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.character-detail-row-selected {
+	background: var(--background-secondary-alt);
+}
+
+.character-detail-row-dragging {
+	opacity: 0.6;
+	cursor: grabbing;
+}
+
+.character-detail-row-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+
+.character-detail-name {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-normal);
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	display: block;
+}
+
+.character-detail-name:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.character-detail-role-pill {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	padding: 2px 6px;
+	border-radius: 4px;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.character-detail-role-pill-protagonist {
+	color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+}
+
+.character-detail-role-pill-mentor {
+	color: var(--color-green);
+	background: color-mix(in srgb, var(--color-green) 15%, transparent);
+}
+
+.character-detail-role-pill-rival {
+	color: var(--text-error);
+	background: color-mix(in srgb, var(--text-error) 15%, transparent);
+}
+
+.character-detail-role-pill-supporting {
+	color: var(--color-orange);
+	background: color-mix(in srgb, var(--color-orange) 15%, transparent);
+}
+
+.character-detail-delete-btn {
+	opacity: 0;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 14px;
+	line-height: 1;
+	padding: 0 2px;
+	transition: opacity 0.1s ease;
+	flex-shrink: 0;
+}
+
+.character-detail-row:hover .character-detail-delete-btn {
+	opacity: 1;
+}
+
+.character-detail-delete-btn:hover {
+	color: var(--text-error);
+}
+
+.character-detail-edit-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+}
+
+.character-detail-name-input {
+	flex: 1;
+	background: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	border-radius: 4px;
+	padding: 4px 8px;
+	font-size: 12px;
+	color: var(--text-normal);
+	outline: none;
+	min-width: 0;
+}
+
+.character-detail-role-select {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 4px 6px;
+	font-size: 11px;
+	color: var(--text-normal);
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.character-detail-save-btn {
+	cursor: pointer;
+	color: var(--interactive-accent);
+	font-size: 14px;
+	line-height: 1;
+	flex-shrink: 0;
+}
+
+.character-detail-save-btn:hover {
+	color: var(--text-accent);
 }

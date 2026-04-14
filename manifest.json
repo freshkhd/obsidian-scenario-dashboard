@@ -1,6 +1,6 @@
 {
 	"id": "obsidian-scenario-dashboard",
-	"name": "Scenario Dashboard",
+	"name": "Animation Project Dashboard",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "A kanban-style dashboard for managing the scenario writing pipeline.",

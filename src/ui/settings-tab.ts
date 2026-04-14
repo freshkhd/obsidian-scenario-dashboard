@@ -51,6 +51,22 @@ export class ScenarioSettingTab extends PluginSettingTab {
 					});
 			});
 
+		// ── Character ───────────────────────────────────────────────────
+		new Setting(containerEl).setName('Character').setHeading();
+
+		new Setting(containerEl)
+			.setName('Reset all character data')
+			.setDesc('Deletes all projects, characters, and canvas node positions. This cannot be undone.')
+			.addButton(btn => {
+				btn.setButtonText('Reset character data').setWarning().onClick(() => {
+					// eslint-disable-next-line no-alert
+					if (!confirm('모든 Character 데이터(프로젝트, 캐릭터, 노드 위치)를 삭제합니다. 계속하시겠습니까?')) return;
+					this.plugin.settings.character = {projects: [], activeProjectId: ''};
+					void this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				});
+			});
+
 		// ── Timeline / Gantt ────────────────────────────────────────────
 		new Setting(containerEl).setName('Timeline / Gantt').setHeading();
 

@@ -7,7 +7,7 @@ export interface KanbanItem {
 export type ColumnId = 'ideas' | 'step-outline' | 'plot-development' | 'treatment' | 'project';
 
 // ── 멀티 뷰 ──────────────────────────────────────────────────────────────
-export type DashboardViewKind = 'story' | 'gantt';
+export type DashboardViewKind = 'story' | 'gantt' | 'character';
 
 // ── 간트 차트 ─────────────────────────────────────────────────────────────
 
@@ -59,4 +59,36 @@ export interface ReferenceTab {
 export interface ReferenceData {
 	customTabs: ReferenceTab[];
 	items: Record<string, KanbanItem[]>; // key = ReferenceTab.id
+}
+
+// ── Character 뷰 ──────────────────────────────────────────────────
+
+export type CharacterRole = 'protagonist' | 'mentor' | 'rival' | 'supporting';
+
+/** 오른쪽 패널에 등록된 캐릭터 한 명 */
+export interface CharacterEntry {
+	id: string;
+	noteTitle: string;  // 동명 Obsidian 노트가 있으면 openLinkText로 연결됨
+	role: CharacterRole;
+	addedAt: number;
+}
+
+/** 캔버스 위에 배치된 캐릭터 노드 인스턴스 */
+export interface CharacterNode {
+	characterId: string;  // CharacterEntry.id 참조
+	x: number;
+	y: number;
+}
+
+/** 프로젝트 1개 */
+export interface CharacterProject {
+	id: string;
+	name: string;
+	characters: CharacterEntry[];
+	nodes: CharacterNode[];
+}
+
+export interface CharacterData {
+	projects: CharacterProject[];
+	activeProjectId: string;
 }
